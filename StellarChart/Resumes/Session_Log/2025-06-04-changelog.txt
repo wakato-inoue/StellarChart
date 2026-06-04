@@ -1,0 +1,83 @@
+2025-06-04 変更ログ
+====================
+
+## 1. 親子タスク管理（末端/非末端）
+
+### 実装したヘルパー関数 (js/app.js)
+- isLeafTask(taskId) - 末端タスク判定
+- getLeafDescendants(taskId) - 末端子孫を再帰収集
+- getComputedActualHours(taskId) - 直下の子の工数を再帰集計
+- getComputedStatus(taskId) - 子から優先度付きで自動算出
+- getComputedAssignees(taskId) - アサイン自動生成（N名/カンマ区切り最大2名）
+- getComputedAssigneeLabel(taskId) - assignee表示用
+- getComputedProgress(taskId) - 子の進捗から自動算出
+- getActualHoursBreakdown(taskId) - 実績内訳 {own, children, total}
+
+### 親子化処理の変更
+- 親子化ダイアログを完全削除（#parentize-dialog HTML/CSS/JS）
+- pendingParentization 関連変数とロジックを削除
+- 子タスク作成時は親の工数はそのまま、子は0hで開始
+
+### タスク作成時の制約
+- タスク作成: 開始日はプロジェクト開始日以降に制限、終了日超過は警告表示（登録はブロックしない）
+- 子タスク作成: 開始日は親タスク開始日以降に制限、終了日超過は警告表示（登録はブロックしない）
+- 期限超過警告: アンバー色の三角マーク付きメッセージ (warning-msg)
+- タスク作成モード: actualHours/progress/status フィールド非表示
+- 子タスク estimatedHours デフォルト = 8
+
+### 表示
+- 詳細ダイアログ: 非末端は 実績「親Nh / 子Nh」内訳表示、編集セクション非表示
+- タスクカード: 非末端は computed status/assignee/progress、「管理」バッジ
+- WBSツリー: 自動算出値を表示
+- 工数WBSツリー: 非末端ノードに「（親Nh / 子Nh）」内訳
+
+### 編集・自動進捗
+- 非末端タスクは編集不可（アラート表示）
+- updateTaskFromDetail: 末端タスクのみ更新可能
+- 自動進捗: not_started→0%, completed→100%, needs_action→savedProgress, in_progress→スライダー値のみ使用
+
+## 2. ダイアログUI改善
+
+### ヘッダー固定
+- .dialog-header に position: sticky; top: 0; z-index: 1
+- 背景: rgb(13, 17, 35) (完全不透明、文字透け防止)
+- 下部に border-bottom
+- h2タイトル色: #fff → var(--amber) (#fbbf24)
+- h2前に星マーク ✦ (::before)
+
+### パディング整理
+- .glass-dialog: padding 0（ヘッダーが端まで広がる）
+- .glass-dialog > :not(.dialog-header):not(.dialog-actions): padding 0 2rem 2rem
+- .dialog-actions (直下): padding 1.5rem 2rem 2rem
+- .dialog-actions (form内): padding-top 1.5rem（formのpadding継承）
+
+### 閉じるボタン
+- 常時 background: rgba(255,255,255,0.05) の32px円形
+- hover → rgba(255,255,255,0.12)
+
+### WBSコード表示
+- .detail-wbs-code: シアン系からグレーのピル型バッジに変更（入力欄誤認防止）
+
+## 3. 今日の作業時間（目立たせ）
+- .detail-today-input: 枠線 var(--primary) 100%、太さ1.5px
+- 背景 2倍に、box-shadow 追加
+- focus時: 光彩 0.30、背景 0.12
+
+## 4. スクロール位置リセット
+- タスク詳細ダイアログ: showModal 直後に scrollTop = 0
+- タスク作成/編集フォームダイアログ: showModal 直後に scrollTop = 0（4ヶ所すべて）
+
+## 5. CSS Variables 追加
+- --amber: #fbbf24（ヘッダータイトル、警告メッセージ）
+
+## 変更ファイル
+- index.html: warning-msg 追加、warning-msg を error-msg より前に配置
+- css/style.css: 全UI変更のスタイル
+- js/app.js: 全ロジック変更
+
+## 動作確認ポイント
+1. 親子タスクの作成と自動計算
+2. タスク作成時の日付制限と警告表示
+3. ダイアログスクロール位置リセット
+4. ダイアログヘッダーの固定と表示
+5. 今日の作業時間の視認性

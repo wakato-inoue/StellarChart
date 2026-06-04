@@ -1,0 +1,133 @@
+================================================================================
+ StellarChart JSファイル構成 ー 名称対照表 (Phase 4)
+================================================================================
+ 全13ファイル / 合計 2,862行 / スクリプト読み込み順に記載
+================================================================================
+
+  #  ファイルパス                行数  含まれる関数                                           役割
+--------------------------------------------------------------------------------------------------------
+  1  js/data.js                  425   RANK_LEVELS, RANK_LABELS                              定数・マスタデータ定義
+                                       employeeMaster, projects, tasks                       モックデータ（社員・プロジェクト・タスク）
+                                       transfers, taskIdCounter                              転送レコード・ID採番
+                                       renderDateTime, getDefaultMembers                     ユーティリティ
+
+  2  js/auth.js                   34   hasRank(minLevel)                                     ランク比較（最小ランク以上か）
+                                       canCreateProject()                                    プロジェクト作成権限（RankS）
+                                       canEditProject()                                      プロジェクト編集権限（RankA）
+                                       canDeleteProject()                                    プロジェクト削除権限（RankS）
+                                       canCreateTask()                                       タスク作成権限（RankA）
+                                       canEditTask()                                         タスク編集権限（RankB）
+                                       canDeleteTask()                                       タスク削除権限（RankA）
+                                       canTransfer()                                         転送権限（常にtrue）
+                                       canChangeStatus(task)                                 ステータス変更権限（担当者 or RankA以上）
+
+  3  js/helpers.js                248   isLeafTask(taskId)                                   末端タスク判定
+                                       getLeafDescendants(taskId)                            末端タスク一覧取得（再帰）
+                                       getComputedActualHours(taskId)                        実績工数取得（非末端は子の合計）
+                                       getComputedStatus(taskId)                             ステータス算出（非末端は子から優先順位判定）
+                                       getComputedAssignees(taskId)                          担当者一覧取得
+                                       getComputedAssigneeLabel(taskId)                      担当者表示ラベル生成（N名/カンマ区切り）
+                                       getComputedProgress(taskId)                           進捗率取得（非末端は子の平均）
+                                       getActualHoursBreakdown(taskId)                       実績工数内訳（親/子）
+                                       getVisibleProjects()                                  表示可能プロジェクト絞り込み
+                                       getVisibleTasksForEffort(projectId)                   工数集計用タスク絞り込み
+                                       formatDate(dateStr)                                   YYYY-MM-DD → YYYY/MM/DD
+                                       getStatusLabel(status)                                ステータス→日本語ラベル
+                                       getDifficultyLabel(difficulty)                        難易度→日本語ラベル
+                                       getPriorityLabel(priority)                            優先度→日本語ラベル
+                                       escapeHTML(str)                                       XSS対策HTMLエスケープ
+                                       hasChildren(taskId)                                   子タスク有無判定
+                                       getTaskDepth(taskId)                                  タスク階層深さ取得
+                                       getNextWBSCode(projectId, parentTaskId)               WBSコード自動採番
+                                       sortByWBSCode(a, b)                                   WBSコード順ソート
+                                       buildTaskTree(projectId, parentTaskId)                タスクツリー構築
+                                       ensureEffortLog(task)                                 effortLog配列初期化
+                                       recalcActualHours(task)                               実績工数再計算
+                                       formatTimestamp(date)                                 タイムスタンプ書式整形
+                                       applyStatusAutoProgress(task, newStatus)              ステータス自動進捗適用
+                                       addStatusHistory(task, prevStatus, newStatus, comment) ステータス履歴追加
+
+  4  js/utils/flatpickr.js         54   filterStartFp, filterEndFp                           プロジェクト検索フィルター用Flatpickr
+                                       projStartFp, projEndFp                                プロジェクトフォーム用Flatpickr
+                                       taskStartDateFp, taskEndDateFp                        タスクフォーム用Flatpickr
+                                       fpConfig                                              共通設定（locale, 日付形式, モーダル表示）
+
+  5  js/utils/dom.js               73   clearErrors()                                        プロジェクトフォーム全エラークリア
+                                       showFieldError(fieldName, message)                    プロジェクトフォームエラー表示
+                                       clearTaskErrors()                                     タスクフォーム全エラークリア
+                                       showTaskError(fieldName, message)                     タスクフォームエラー表示
+                                       clearTaskWarnings()                                   タスクフォーム警告クリア
+                                       updateTaskEndDateWarning()                            終了日超過警告表示/非表示
+
+  6  js/components/projects.js    138   applyRankBasedUI()                                   新規プロジェクトボタンの表示制御
+                                       resetFilters()                                        プロジェクト検索フィルターリセット
+                                       renderProjects()                                      プロジェクトカード一覧描画（フィルター対応）
+                                       deleteProject(projectId)                              プロジェクト＋配下タスク削除
+                                       populateProjectSelects()                              タスクフィルター用プロジェクトセレクト構築
+
+  7  js/components/tasks.js       167   populateAssigneeSelect(projectId)                    タスクフォーム担当者セレクト構築（メンバー絞り込み）
+                                       resetTaskFilters()                                    タスク検索フィルターリセット
+                                       renderTasks()                                         タスクカード一覧描画（フィルター・ランク可視性対応）
+                                       deleteTask(taskId)                                    タスク＋子タスク削除（確認ダイアログ）
+
+  8  js/components/wbs.js         221   populateEffortProjectSelect()                        工数集計プロジェクトセレクト構築
+                                       populateWBSProjectSelect()                            WBSプロジェクトセレクト構築
+                                       renderWBS()                                           WBSツリー描画（自分の担当のみフィルター対応）
+                                       filterTreeByVisible(nodes, myTaskIds)                 担当タスクのみツリー絞り込み（再帰）
+                                       renderTreeNodes(nodes, depth, myTaskIds)              WBSノードHTML生成（再帰）
+                                       renderEffortSummary()                                 工数集計サマリー描画（計画/実績/差異/担当者別/WBS別）
+                                       renderEffortWBSTree(projectId, parentTaskId, tasks)    WBS別工数ツリーHTML生成（再帰）
+
+  9  js/components/issues.js      134   getActiveIssues()                                    自分宛て未処理要課題一覧取得
+                                       updateIssueBadge()                                    サイドバーバッジ更新
+                                       openIssuePanel()                                      要課題パネル（スライドアウト）表示
+                                       closeIssuePanel()                                     要課題パネル閉じる
+                                       openTransferDialog(taskId)                            転送ダイアログ表示（転送先セレクト構築）
+                                       confirmTransfer()                                     転送確定（担当者変更・スレッド追記・レコード作成）
+                                       transferTaskId (変数)                                 現在転送処理中のタスクID
+
+ 10  js/dialogs/task-form.js      293   openCreateTaskDialogForProject(projectId)             プロジェクトからタスク作成ダイアログ
+                                       openCreateTaskDialog()                                タスク一覧から作成ダイアログ
+                                       openCreateChildTaskDialog(parentTaskId)                親タスク指定で子タスク作成ダイアログ
+                                       openEditTaskDialog(taskId)                            タスク編集ダイアログ
+                                       handleTaskFormSubmit(e)                               フォーム送信（新規/編集判定・バリデーション・保存）
+
+ 11  js/dialogs/project-form.js   168   openCreateDialog()                                   新規プロジェクト作成ダイアログ
+                                       openEditDialog(projectId)                             プロジェクト編集ダイアログ
+                                       closeCreateDialog()                                   ダイアログを閉じる
+                                       handleFormSubmit(e)                                   フォーム送信（新規/編集判定・バリデーション・保存）
+
+ 12  js/dialogs/employee.js        82   openEmployeeDialog()                                 社員選択ダイアログ表示
+                                       renderEmployees(filterText)                           社員リスト描画（キーワードフィルター）
+                                       handleCheckboxToggle(checkbox)                        チェック状態更新
+                                       confirmSelectedEmployees()                            選択確定→プロジェクトフォームに反映
+
+ 13  js/app.js                    825   showLoginDialog()                                    ログインダイアログ表示・ユーザー選択
+                                       initApp()                                             アプリ初期化（Flatpickr・イベント・初回レンダリング）
+                                       switchView(view)                                      ビュー切替（projects/tasks/wbs/effort）
+                                       openTaskDetail(taskId)                                タスク詳細モーダル表示（HTML生成・イベントバインド）
+                                       deleteEffortLogEntry(taskId, logId)                   作業履歴エントリ削除
+                                       addComment(taskId, content)                           スレッドコメント追加
+                                       updateTaskFromDetail(taskId)                          詳細画面からステータス・工数・進捗更新
+                                       グローバル変数多数                                     currentUser, DOM要素参照, 状態変数
+
+================================================================================
+ ディレクトリ構造
+================================================================================
+ js/
+    app.js              (エントリポイント, 825行)
+    data.js             (データ定義, 425行)
+    auth.js             (権限チェック, 34行)
+    helpers.js          (純粋関数, 248行)
+    utils/
+      flatpickr.js      (日付ピッカー設定, 54行)
+      dom.js            (DOMユーティリティ, 73行)
+    components/
+      projects.js       (プロジェクト一覧, 138行)
+      tasks.js          (タスク一覧, 167行)
+      wbs.js            (WBS・工数集計, 221行)
+      issues.js         (要課題・転送, 134行)
+    dialogs/
+      task-form.js      (タスクフォーム, 293行)
+      project-form.js   (プロジェクトフォーム, 168行)
+      employee.js       (社員選択, 82行)
