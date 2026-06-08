@@ -3,6 +3,7 @@
 // 役割: 要課題（needs_action）の一覧表示・バッジ更新・
 //       タスク転送（たらいまわし）ダイアログの制御を行う
 // ==========================================================================
+// データアクセスは repository.js に集約（taskRepo / projectRepo / transferRepo）
 //
 // 関数一覧:
 //   getActiveIssues()                 - 自分宛ての未処理要課題一覧を取得
@@ -21,9 +22,8 @@ let transferTaskId = null;
 
 // --- 要課題機能 ---
 function getActiveIssues() {
-  return transfers.filter(t => {
-    if (t.to !== currentUser.name) return false;
-    const task = tasks.find(task => task.id === t.taskId);
+  return transferRepo.findByTargetUser(currentUser.name).filter(t => {
+    const task = taskRepo.findById(t.taskId);
     if (!task) return false;
     if (task.assignee !== currentUser.name) return false;
     return task.status === 'needs_action';
@@ -49,7 +49,7 @@ function openIssuePanel() {
     issueList.innerHTML = '<div class="issue-empty">要課題はありません</div>';
   } else {
     myIssues.forEach(tr => {
-      const task = tasks.find(t => t.id === tr.taskId);
+      const task = taskRepo.findById(tr.taskId);
       const taskName = task ? task.name : '不明なタスク';
       const div = document.createElement('div');
       div.className = 'notif-item notif-unread';
@@ -90,7 +90,7 @@ function closeIssuePanel() {
 
 // --- 転送機能 ---
 function openTransferDialog(taskId) {
-  const task = tasks.find(t => t.id === taskId);
+  const task = taskRepo.findById(taskId);
   if (!task) return;
 
   transferTaskId = taskId;
@@ -120,7 +120,7 @@ function confirmTransfer() {
     return;
   }
 
-  const task = tasks.find(t => t.id === transferTaskId);
+  const task = taskRepo.findById(transferTaskId);
   if (!task) return;
 
   const reason = transferReason.value.trim() || '理由の指定なし';
@@ -149,7 +149,7 @@ function confirmTransfer() {
     timestamp: timestamp,
     read: false
   };
-  transfers.unshift(transferRecord);
+  transferRepo.save(transferRecord);
   updateIssueBadge();
 
   transferDialog.close();

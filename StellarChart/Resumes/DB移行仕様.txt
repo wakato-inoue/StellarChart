@@ -1,0 +1,368 @@
+StellarChart DB移行仕様
+========================
+作成日: 2026-06-05
+
+■ 現状の問題
+-----------
+- tasks / projects / transfers などのグローバル配列をコード全体で直接参照
+- filter / find / push / 直接代入 が全ファイルに散在
+- 「どこでデータを読んでいるか／書いているか」が一箇所に集約されていない
+
+■ 移行方針
+-----------
+データアクセス層（Data Access Layer）を1つ作り、
+全コンポーネントはそれ経由でのみデータを読み書きする。
+
+理想の構成:
+  js/
+    data/
+      schema.js        — 型定義・定数
+      repository.js    — CRUD操作を全てここに集約
+      api-client.js    — API呼び出し窓口
+      mock-provider.js — 現状のモックデータ提供
+
+■ 移行手順（案）
+-----------------
+Step 1: repository.js を作成し、以下のCRUD関数を定義
+  - taskRepo.findAll() / findById() / findByProject() / save() / delete()
+  - projectRepo.findAll() / findById() / save() / delete()
+  - transferRepo.findAll() / save()
+  - employeeMaster はマスタデータとして const 維持 or API化
+
+Step 2: 各コンポーネントの グローバル配列直接参照 を repository 経由に置き換え
+  - 例: tasks.filter(t => t.projectId === id)
+    → taskRepo.findByProject(id)
+  - 例: tasks.push(newTask)
+    → taskRepo.save(newTask)
+
+Step 3: モック → API への差し替え
+  - mock-provider.js と api-client.js を repository.js 内で切り替え
+  - 切り替えは repository.js 1ファイルの修正で完了
+
+■ 現状の依存ファイル一覧（grep [DB] で抽出可能）
+-----------------------------------------------
+ファイルレベルで tasks / projects / transfers を直接参照しているファイル:
+
+  helpers.js       — tasks, projects, wbsCodeCounter
+  globals.js       — tasks, wbsCodeCounter
+  task-form.js     — tasks, projects, wbsCodeCounter
+  task-detail.js   — tasks, projects
+  tasks.js         — tasks, projects, employeeMaster
+  projects.js      — projects, tasks
+  issues.js        — tasks, transfers, employeeMaster
+  wbs.js           — tasks, projects
+  project-form.js  — projects, employeeMaster
+  employee.js      — projects, employeeMaster
+  login.js         — employeeMaster
+
+配列レベルの書き込み（push / 直接代入 / filter再代入）がある箇所は
+各ファイルに // [DB] 書込 コメントを付与済み。
+
+■ データ操作 棚卸し
+--------------------
+
+【tasks 配列】
+
+≪ findById: tasks.find(t => t.id === taskId) ≫  総出現: 17回
+  helpers.js:
+    getComputedActualHours      — 引数taskIdに合致
+    getComputedStatus           — 同上
+    getComputedAssignees        — 同上
+    getComputedProgress         — 同上
+    getActualHoursBreakdown     — 同上
+    getTaskDepth                — 同上（ループ内で親探索にも使用）
+    getNextWBSCode              — 親タスク検索
+  task-detail.js:
+    openTaskDetail              — 詳細表示対象
+    deleteEffortLogEntry        — 削除対象
+    addComment                  — コメント追加対象
+    updateTaskFromDetail        — 更新対象（3回呼び出しあり）
+  issues.js:
+    getActiveIssues             — 要課題タスク参照（2回）
+    openIssuePanel              — パネル表示対象
+    openTransferDialog          — 転送元タスク
+    confirmTransfer             — 転送実行対象
+  tasks.js:
+    deleteTask                  — 削除処理（子タスク探索）
+
+≪ findByParent: tasks.filter(t => t.parentTaskId === taskId) ≫  総出現: 7回
+  helpers.js:
+    getLeafDescendants          — 子タスク収集
+    getComputedActualHours      — 子タスク工数集計
+    getActualHoursBreakdown     — 子タスク内訳
+    getNextWBSCode              — 兄弟タスク数取得（siblings）
+  wbs.js:
+    renderEffortWBSTree         — WBS別工数ツリー構築（2箇所）
+
+≪ findByProject: tasks.filter(t => t.projectId === projectId) ≫  総出現: 5回
+  helpers.js:
+    getVisibleTasksForEffort    — 工数集計対象一覧
+    buildTaskTree               — WBSツリー構築
+  wbs.js:
+    renderWBS (myTaskIds)       — 担当タスク抽出
+    renderEffortWBSTree         — WBS別工数（階層）
+  projects.js:
+    deleteProject               — プロジェクト削除に伴う削除
+
+≪ anyMatch: tasks.some(t => t.parentTaskId === taskId) ≫  総出現: 2回
+  helpers.js:
+    isLeafTask                  — 末端判定
+    hasChildren                 — 子有無判定
+
+≪ findAll (フィルターなし全件走査) ≫  総出現: 4回
+  globals.js:
+    initWBSCodes                — 未設定タスクのコード採番（3回）
+  tasks.js:
+    renderTasks                 — 一覧表示（他のフィルターと併用）
+
+≪ 書込: push ≫  出現: 1回
+  task-form.js:
+    handleTaskFormSubmit        — 新規タスク追加
+
+≪ 書込: インデックス代入 ≫  出現: 1回
+  task-form.js:
+    handleTaskFormSubmit        — タスク更新 (tasks[taskIndex] = {...})
+
+≪ 書込: filter再代入 ≫  出現: 2回
+  tasks.js:
+    deleteTask                  — タスク削除（tasks = tasks.filter(...)）
+
+≪ 書込: プロジェクト削除に伴う一括削除 ≫  出現: 1回
+  projects.js:
+    deleteProject               — tasks = tasks.filter(t => t.projectId !== projectId)
+
+≪ 書込: オブジェクトプロパティ変更（配列自体は不変） ≫
+  多数のファイルで以下のようなプロパティ直接変更が発生:
+    - task.status / task.progress / task.assignee の変更
+    - task.thread.push(...)     — コメント追加
+    - task.effortLog.push(...)  — 作業履歴追加
+    - task.statusHistory.push(...) — ステータス履歴追加
+    - task.wbsCode の設定
+    - task.parentTaskId の設定
+    - task.savedProgress の設定
+  ※ DB移行時はこれらのプロパティ変更後に taskRepo.save(task) が必要
+
+
+【projects 配列】
+
+≪ findById: projects.find(p => p.id === projectId) ≫  総出現: 8回
+  helpers.js:
+    getVisibleProjects          — 権限フィルター
+  task-detail.js:
+    openTaskDetail              — プロジェクト名表示
+  task-form.js:
+    handleTaskFormSubmit (3回)  — 終了日バリデーションなど
+  tasks.js:
+    populateAssigneeSelect      — メンバー取得
+    renderTasks (2回)           — プロジェクト名・権限チェック
+  project-form.js:
+    openEditDialog              — 編集ダイアログ表示
+  wbs.js:
+    renderEffortSummary         — プロジェクト名表示
+
+≪ findAll (フィルター付き全件) ≫  総出現: 3回
+  helpers.js:
+    getVisibleProjects          — 権限フィルター
+  projects.js:
+    renderProjects              — キーワード・ステータス・日付フィルター
+  wbs.js / projects.js:
+    populateProjectSelects      — セレクトボックス構築（2箇所）
+
+≪ 書込: push ≫  出現: 1回
+  project-form.js:
+    handleFormSubmit            — 新規プロジェクト追加
+
+≪ 書込: インデックス代入 ≫  出現: 1回
+  project-form.js:
+    handleFormSubmit            — プロジェクト更新
+
+≪ 書込: filter再代入 ≫  出現: 1回
+  projects.js:
+    deleteProject               — プロジェクト削除
+
+
+【transfers 配列】
+
+≪ findByToUser: transfers.filter(t => t.to === userName) ≫  出現: 1回
+  issues.js:
+    getActiveIssues             — 自分宛て要課題取得
+
+≪ 書込: unshift ≫  出現: 1回
+  issues.js:
+    confirmTransfer             — 転送レコード追加
+
+
+【employeeMaster 配列】（参照のみ、const）
+
+≪ forEach 全件走査 ≫  出現: 3回
+  login.js:
+    showLoginDialog             — 社員カード一覧生成
+  issues.js:
+    openTransferDialog          — 転送先セレクト構築
+  employee.js:
+    renderEmployees             — 社員選択リスト描画（filter併用）
+
+≪ findById: employeeMaster.find(e => e.id === empId) ≫  出現: 1回
+  login.js:
+    showLoginDialog             — ログインユーザー特定
+
+≪ findByName: employeeMaster.find(e => e.name === name) ≫  出現: 1回
+  project-form.js:
+    handleFormSubmit            — RankB以上チェック
+
+≪ filter 全文検索 ≫  出現: 2回
+  employee.js:
+    renderEmployees             — 名前・部署で絞り込み
+  tasks.js:
+    populateAssigneeSelect      — プロジェクトメンバーで絞り込み
+
+
+【wbsCodeCounter】（グローバル変数）
+
+≪ 読取 ≫  出現: 2回
+  helpers.js:
+    getNextWBSCode              — 子タスクフォールバック
+    getNextWBSCode              — return文
+
+≪ 書込 ++ ≫  出現: 2回
+  helpers.js:
+    getNextWBSCode              — インクリメント
+  globals.js:
+    initWBSCodes                — インクリメント
+
+≪ 書込 = ≫  出現: 1回
+  globals.js:
+    initWBSCodes                — カウンター同期
+
+
+■ Repository インターフェース設計
+-----------------------------------
+
+【taskRepo】
+
+// --- 参照系 ---
+taskRepo.findById(id)               → Task | null
+  // tasks.find(t => t.id === id) の代替（17箇所）
+
+taskRepo.findByProject(projectId)   → Task[]
+  // tasks.filter(t => t.projectId === projectId) の代替（5箇所）
+
+taskRepo.findByParent(parentTaskId) → Task[]
+  // tasks.filter(t => t.parentTaskId === parentTaskId) の代替（7箇所）
+
+taskRepo.hasChildren(taskId)        → boolean
+  // tasks.some(t => t.parentTaskId === taskId) の代替（2箇所）
+
+taskRepo.findAll()                  → Task[]
+  // 全件取得（管理者向け表示など。4箇所）
+
+taskRepo.getLeaves(taskId)          → Task[]
+  // 再帰的に末端タスクを収集（getLeafDescendants の内部処理）
+
+// --- 書込系 ---
+taskRepo.save(taskData)             → Task
+  // 新規作成（id自動生成） + 更新（既存idの場合はマージ）を統一
+  // 現状の tasks.push(newTask) と tasks[index] = {...} の両方を代替
+
+taskRepo.delete(id)                 → void
+  // 単体削除（子タスクがある場合はエラー or 別メソッドを呼ぶ）
+
+taskRepo.deleteWithChildren(id)     → void
+  // 子タスクも含めて再帰削除
+
+taskRepo.deleteByProject(projectId) → void
+  // プロジェクト削除に伴う全タスク削除
+
+taskRepo.saveProperty(task)         → void
+  // プロパティ変更後の保存（オブジェクトの参照そのまま、DBはUPDATE）
+  // 現状の task.status = x / task.thread.push(...) 等の後に呼ぶ
+
+// --- WBSコード管理（wbsCodeCounter） ---
+taskRepo.nextWBSCode(parentTaskId)  → string
+  // getNextWBSCode の代替。親ありなら "parent.childNumber"、
+  // 親なしならグローバルカウンターをインクリメント
+
+taskRepo.syncWBSCodes(tasks)        → void
+  // initWBSCodes IIFE の代替。wbsCode未設定タスクに採番
+
+
+【projectRepo】
+
+// --- 参照系 ---
+projectRepo.findById(id)            → Project | null
+  // projects.find(p => p.id === id) の代替（8箇所）
+
+projectRepo.findAll()               → Project[]
+  // 全件取得（権限フィルターは呼び出し側 or findAll の引数で制御）
+
+projectRepo.findVisible(user)       → Project[]
+  // ユーザーがメンバーとなっているプロジェクトを返す
+  // getVisibleProjects の代替
+
+// --- 書込系 ---
+projectRepo.save(projectData)       → Project
+  // 新規作成（id自動生成） + 更新を統一
+  // projects.push / projects[index] = {...} の代替
+
+projectRepo.delete(id)              → void
+  // プロジェクト削除 + 内部で taskRepo.deleteByProject も呼ぶ
+  // deleteProject の代替
+
+
+【transferRepo】
+
+// --- 参照系 ---
+transferRepo.findByTargetUser(userName) → Transfer[]
+  // transfers.filter(t => t.to === userName) の代替
+
+transferRepo.findAll()              → Transfer[]
+  // 全件取得（現状未使用だが将来の管理画面に備え）
+
+// --- 書込系 ---
+transferRepo.save(transferData)     → Transfer
+  // transfers.unshift(...) の代替
+
+
+【employeeMaster】（Repository不要。マスタデータとして const 維持 or API化案）
+
+// 現状は const employeeMaster = [...] で固定。
+// DB移行時の選択肢:
+//   A) そのまま const 維持（HRシステムとの連携が別途ある場合）
+//   B) 後日 employeeApi.fetchAll() でAPI取得に変更
+//
+// アクセスパターン:
+//   findAll()     → そのまま employeeMaster（3箇所）
+//   findById(id)  → employeeMaster.find(...) （1箇所）
+//   findByName(n) → employeeMaster.find(...) （1箇所）
+//   filter(cond)  → employeeMaster.filter(...) （2箇所）
+//
+// 将来的にAPI化する場合は以下のインターフェースを推奨:
+//   employeeRepo: { findAll, findById, findByName }
+
+
+【オブジェクトプロパティ変更の保存戦略】
+
+現状ではタスクオブジェクトのプロパティを直接変更している箇所が多数ある。
+DB移行時は以下の2パターンが考えられる:
+
+パターンA: プロパティ変更後に毎回 taskRepo.saveProperty(task) を呼ぶ
+  task.status = 'completed';
+  taskRepo.saveProperty(task);  // 追加行
+  // 確実だが漏れのリスクあり
+
+パターンB: Proxy や setter で変更を検知して自動保存
+  const task = taskRepo.findById(id);
+  task.status = 'completed';  // Proxy が自動で save
+  // 安全だが複雑。導入コストが高い
+
+推奨: まずは パターンA で実装し、
+      後日必要に応じて パターンB に移行するのが現実的。
+
+
+■ 実装状況
+-----------
+2026-06-05: js/data/repository.js を作成
+  - taskRepo / projectRepo / transferRepo の3つのオブジェクトを定義
+  - 現状はグローバル配列 (tasks / projects / transfers) を直接操作
+  - index.html の script 読み込み順に追加済み（data.js の直後）
+  - 各コンポーネントの直接参照を repository に置き換えるのは未着手（Step 2）

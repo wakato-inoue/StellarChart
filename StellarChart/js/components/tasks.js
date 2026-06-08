@@ -3,6 +3,7 @@
 // 役割: タスク一覧画面の描画・フィルタリング・削除・
 //       担当者セレクトボックスの構築を行う
 // ==========================================================================
+// データアクセスは repository.js に集約（taskRepo / projectRepo / transferRepo）
 //
 // 関数一覧:
 //   populateAssigneeSelect(projectId) - タスクフォームの担当者セレクトを構築（プロジェクトメンバーで絞り込み）
@@ -18,7 +19,7 @@ function populateAssigneeSelect(projectId) {
 
   let candidates = employeeMaster;
   if (projectId) {
-    const proj = projects.find(p => p.id === projectId);
+    const proj = projectRepo.findById(projectId);
     if (proj && proj.members) {
       candidates = employeeMaster.filter(emp => proj.members.includes(emp.name));
     }
@@ -48,7 +49,7 @@ function renderTasks() {
   const statusFilter = taskFilterStatus.value;
   const priorityFilter = taskFilterPriority.value;
 
-  const filteredTasks = tasks.filter(task => {
+  const filteredTasks = taskRepo.findAll().filter(task => {
     if (keyword) {
       const nameMatch = task.name.toLowerCase().includes(keyword);
       const descMatch = (task.description || '').toLowerCase().includes(keyword);
@@ -60,7 +61,7 @@ function renderTasks() {
 
     if (hasRank('RankS')) {
     } else if (hasRank('RankA')) {
-      const proj = projects.find(p => p.id === task.projectId);
+      const proj = projectRepo.findById(task.projectId);
       if (!proj || !proj.members.includes(currentUser.name)) return false;
     } else {
       if (task.assignee !== currentUser.name) return false;
@@ -91,7 +92,7 @@ function renderTasks() {
     const computedAssigneeLabel = getComputedAssigneeLabel(t.id);
     const computedActual = getComputedActualHours(t.id);
     const computedProgress = getComputedProgress(t.id);
-    const proj = projects.find(p => p.id === t.projectId);
+    const proj = projectRepo.findById(t.projectId);
     const projName = proj ? proj.name : '不明なプロジェクト';
 
     const card = document.createElement('div');
@@ -176,18 +177,13 @@ function renderTasks() {
 
 // --- タスク削除 ---
 function deleteTask(taskId) {
-  const hasChildTasks = hasChildren(taskId);
+  const hasChildTasks = taskRepo.hasChildren(taskId);
   if (hasChildTasks) {
     if (!confirm('このタスクには子タスクが存在します。\n子タスクも含めてすべて削除してもよろしいですか？')) return;
-    function deleteWithChildren(id) {
-      const childIds = tasks.filter(t => t.parentTaskId === id).map(t => t.id);
-      childIds.forEach(cid => deleteWithChildren(cid));
-      tasks = tasks.filter(t => t.id !== id);
-    }
-    deleteWithChildren(taskId);
+    taskRepo.deleteWithChildren(taskId);
   } else {
     if (!confirm('このタスクを削除してもよろしいですか？')) return;
-    tasks = tasks.filter(t => t.id !== taskId);
+    taskRepo.delete(taskId);
   }
   renderTasks();
   if (currentView === 'wbs') renderWBS();

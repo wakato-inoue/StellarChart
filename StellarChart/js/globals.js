@@ -3,6 +3,7 @@
 // 役割: アプリケーション全体で共有するグローバル状態変数と
 //       DOM要素参照を定義する。このファイルは helpers.js の前に読み込むこと
 // ==========================================================================
+// データアクセスは repository.js に集約（taskRepo / projectRepo / transferRepo）
 //
 // 状態変数:
 //   currentUser             - ログインユーザー { name, department, rank }
@@ -23,32 +24,8 @@
 // --- 現在のユーザー (ログイン後に設定) ---
 let currentUser = null;
 
-// 既存タスクにWBSコードを初期化
-(function initWBSCodes() {
-  const byProject = {};
-  tasks.forEach(t => {
-    if (!byProject[t.projectId]) byProject[t.projectId] = [];
-    byProject[t.projectId].push(t);
-  });
-  function assignChildCodes(parentTask, allTasks) {
-    const children = allTasks
-      .filter(t => t.parentTaskId === parentTask.id)
-      .sort((a, b) => parseInt(a.id.replace(/\D/g, '')) - parseInt(b.id.replace(/\D/g, '')));
-    children.forEach((child, i) => {
-      child.wbsCode = `${parentTask.wbsCode}.${i + 1}`;
-      assignChildCodes(child, allTasks);
-    });
-  }
-  Object.values(byProject).forEach(projectTasks => {
-    const topLevel = projectTasks.filter(t => !t.parentTaskId)
-      .sort((a, b) => parseInt(a.id.replace(/\D/g, '')) - parseInt(b.id.replace(/\D/g, '')));
-    topLevel.forEach((t, i) => {
-      t.wbsCode = `${i + 1}`;
-      t.parentTaskId = null;
-      assignChildCodes(t, projectTasks);
-    });
-  });
-})();
+// 既存タスクにWBSコードを初期化（移行用：未設定のタスクにのみ採番）
+taskRepo.syncWBSCodes();
 
 // 現在の表示ビュー
 let currentView = 'projects';

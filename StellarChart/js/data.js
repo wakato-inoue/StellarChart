@@ -12,6 +12,7 @@
 //   tasks           - タスク一覧 (モックデータ)
 //   transfers       - 転送（たらいまわし）レコード一覧
 //   taskIdCounter   - タスクID採番カウンター
+//   wbsCodeCounter  - WBSコード（項番）グローバル採番カウンター
 //   renderDateTime  - 日時表示用フォーマッター
 //   getDefaultMembers - プロジェクト初期メンバー取得
 //
@@ -87,6 +88,7 @@ let tasks = [
   {
     id: "task-1",
     projectId: "proj-1",
+    wbsCode: "1",
     name: "生命維持装置の設計",
     description: "月面環境に対応した生命維持システムの基本設計を行う。",
     assignee: "星野 太郎",
@@ -108,6 +110,7 @@ let tasks = [
   {
     id: "task-2",
     projectId: "proj-1",
+    wbsCode: "2",
     name: "管制システムモジュール開発",
     description: "打ち上げ管制システムのソフトウェアモジュールを開発する。",
     assignee: "宇都宮 花子",
@@ -127,6 +130,7 @@ let tasks = [
   {
     id: "task-3",
     projectId: "proj-1",
+    wbsCode: "3",
     name: "構造強度シミュレーション",
     description: "宇宙船外殻の有限要素法による構造解析を実施。",
     assignee: "ニール・アームストロング",
@@ -146,6 +150,7 @@ let tasks = [
   {
     id: "task-4",
     projectId: "proj-2",
+    wbsCode: "4",
     name: "搭載機器インターフェース設計",
     description: "観測衛星搭載機器間の電気的・機械的インターフェースを設計する。",
     assignee: "加藤 健二",
@@ -165,6 +170,7 @@ let tasks = [
   {
     id: "task-5",
     projectId: "proj-2",
+    wbsCode: "5",
     name: "地上局との通信試験",
     description: "試作機を用いた地上局との通信結合試験を実施。",
     assignee: "宇都宮 花子",
@@ -186,6 +192,7 @@ let tasks = [
   {
     id: "task-6",
     projectId: "proj-3",
+    wbsCode: "6",
     name: "プロトコル仕様書の作成",
     description: "恒星間通信プロトコルの詳細仕様書を作成し、レビューを実施。",
     assignee: "ドク・ブラウン",
@@ -209,6 +216,7 @@ let tasks = [
   {
     id: "task-7",
     projectId: "proj-4",
+    wbsCode: "7",
     name: "推進エンジン改修設計",
     description: "木星軌道投入に向けた推進エンジンの出力向上改修設計。",
     assignee: "星野 太郎",
@@ -230,6 +238,7 @@ let tasks = [
   {
     id: "task-8",
     projectId: "proj-2",
+    wbsCode: "8",
     name: "セキュリティプロトコルの策定",
     description: "観測衛星の地上局通信におけるセキュリティプロトコルを策定する。",
     assignee: "サラ・コナー",
@@ -249,6 +258,7 @@ let tasks = [
   {
     id: "task-9",
     projectId: "proj-3",
+    wbsCode: "9",
     name: "理論検証: 量子通信の応用",
     description: "恒星間通信への量子もつれ通信応用の理論的検証を行う。",
     assignee: "アインシュタイン",
@@ -268,6 +278,7 @@ let tasks = [
   {
     id: "task-10",
     projectId: "proj-3",
+    wbsCode: "10",
     name: "相対論的通信遅延の補正式導出",
     description: "恒星間距離における相対論的効果を考慮した通信遅延補正式を導出する。",
     assignee: "アインシュタイン",
@@ -288,6 +299,7 @@ let tasks = [
     id: "task-11",
     projectId: "proj-2",
     parentTaskId: "task-8",
+    wbsCode: "8.1",
     name: "暗号化通信方式の選定",
     description: "衛星-地上局間の暗号化通信方式を調査し、最適な方式を選定する。",
     assignee: "サラ・コナー",
@@ -308,6 +320,7 @@ let tasks = [
     id: "task-12",
     projectId: "proj-1",
     parentTaskId: "task-1",
+    wbsCode: "1.1",
     name: "酸素供給システムのパラメータ設計",
     description: "生命維持装置の中核である酸素供給システムの設計パラメータを決定する。",
     assignee: "星野 太郎",
@@ -328,6 +341,7 @@ let tasks = [
     id: "task-13",
     projectId: "proj-1",
     parentTaskId: "task-1",
+    wbsCode: "1.2",
     name: "二酸化炭素除去システムの設計",
     description: "生命維持装置の二酸化炭素除去サブシステムを設計する。",
     assignee: "星野 太郎",
@@ -348,6 +362,7 @@ let tasks = [
     id: "task-14",
     projectId: "proj-4",
     parentTaskId: "task-7",
+    wbsCode: "7.1",
     name: "推力向上ノズルの設計",
     description: "推進エンジンのノズル形状を改良し推力を15%向上させる。",
     assignee: "星野 太郎",
@@ -368,6 +383,7 @@ let tasks = [
     id: "task-15",
     projectId: "proj-4",
     parentTaskId: "task-7",
+    wbsCode: "7.2",
     name: "推進薬供給系統の再設計",
     description: "高出力化に伴う推進薬供給系統の再設計を行う。",
     assignee: "星野 太郎",
@@ -388,6 +404,7 @@ let tasks = [
     id: "task-16",
     projectId: "proj-4",
     parentTaskId: "task-7",
+    wbsCode: "7.3",
     name: "冷却システムの強化",
     description: "エンジン出力向上に伴う冷却システムの強化改修を行う。",
     assignee: "星野 太郎",
@@ -432,3 +449,8 @@ let transfers = [
     read: false
   }
 ];
+
+// --- WBSコード（項番）グローバルカウンター ---
+// 新規タスク作成時にインクリメントして項番として使用する
+// モックデータのトップレベル最大項番 (= 10) で初期化
+let wbsCodeCounter = 10;

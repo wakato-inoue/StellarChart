@@ -1195,6 +1195,10 @@ dialog[open] {
   color: var(--text-main);
   line-height: 1.3;
   flex-grow: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .task-card-desc {
@@ -2436,6 +2440,10 @@ dialog[open] {
 .effort-wbs-name {
   flex: 1;
   color: var(--text-main);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .effort-wbs-hours {

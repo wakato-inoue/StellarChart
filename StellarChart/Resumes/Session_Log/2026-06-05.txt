@@ -1,0 +1,73 @@
+StellarChart DB移行 セッションログ
+===================================
+日付: 2026-06-05
+
+概要
+----
+タスク管理アプリ StellarChart のデータアクセス層を、
+グローバル配列 (tasks / projects / transfers) の直接参照から
+Repository パターン経由に移行するプロジェクト。
+
+目的: 将来の DB/API バックエンド移行を可能にするため、
+      全データアクセスを repository.js に集約する。
+
+成果物
+------
+1. 設計文書: Resumes/DB移行仕様.txt
+   - データアクセスパターン棚卸し
+   - Repository インターフェース設計
+2. 実装: js/data/repository.js (204行)
+   - taskRepo (findById / findByProject / findByParent / hasChildren /
+     findAll / getLeaves / save / delete / deleteWithChildren /
+     deleteByProject / nextWBSCode / syncWBSCodes)
+   - projectRepo (findById / findAll / findVisible / save / delete)
+   - transferRepo (findByTargetUser / findAll / save)
+
+移行完了ファイル (全11ファイル)
+-------------------------------
+1. js/globals.js         - IIFE → taskRepo.syncWBSCodes()
+2. js/helpers.js         - 全13関数を repository 経由に
+3. js/dialogs/task-form.js   - find/save → taskRepo.save
+4. js/dialogs/task-detail.js - tasks.find(×4) → taskRepo.findById
+5. js/components/tasks.js    - tasks=filter → taskRepo.delete/deleteWithChildren
+6. js/components/projects.js - projects=filter → projectRepo.delete
+7. js/dialogs/project-form.js - findIndex/push → projectRepo.save
+8. js/components/issues.js    - transfers.filter/unshift → transferRepo.findByTargetUser/save
+9. js/components/wbs.js       - tasks.filter(×3) → findByProject+filter
+10. js/dialogs/employee.js    - projects.find(×3) → projectRepo.findById
+11. js/dialogs/login.js       - 対象外 (employeeMaster のみ)
+
+その他
+------
+- index.html に js/data/repository.js の読み込みを追加
+- WBSコードをプロジェクト横断でグローバル一意に変更
+- WBS/effort サマリーの parentTaskId バグを修正 (undefined→null)
+- CSS に text-overflow ellipsis を追加 (task-card-title, effort-wbs-name)
+- 全 [DB] コメント (ファイルヘッダー + インライン書込マーカー) を削除
+
+既知の修正
+----------
+- task-form.js: taskRepo.update/add → taskRepo.save (存在しないメソッド呼び出し)
+- task-form.js: addStatusHistory が別オブジェクトに追記されるバグを修正
+  (save の戻り値を使用するよう変更)
+
+DB論理設計
+-----------
+- テーブル構成案レビュー・修正 (FK統一版)
+- 全8テーブル定義 (EMPLOYEES / PROJECTS / PROJECT_MEMBERS / TASKS /
+  TASK_COMMENTS / TASK_STATUS_HISTORY / EFFORT_LOG / TRANSFERS)
+- 決定事項:
+  - WBSコード: グローバル一意 (UNIQUE(wbs_code))
+  - タスク名: name (title ではなく)
+  - employee_no: 追加 (FKは id 参照)
+- DDL作成: DB\DDL\ に3ファイル
+  - stellar_chart_standard.sql
+  - stellar_chart_postgresql.sql
+  - stellar_chart_oracle.sql
+
+次のステップ
+-----------
+- Spring Boot Entity 作成
+- Spring Repository 作成
+- REST API 作成
+- repository.js 内部を API クライアントに差し替え

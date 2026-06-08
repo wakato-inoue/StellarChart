@@ -1,8 +1,9 @@
 // ==========================================================================
 // StellarChart - Task form dialog
-// 役割: タスク作成/編集/子タスク作成の各ダイアログ表示・フォーム送信処理を行う
-//       バリデーション・WBSコード自動採番・進捗自動計算も担当する
+// 役割: タスク作成/編集ダイアログの表示・フォームバリデーション・
+//       保存（新規作成／編集／子タスク作成）を行う
 // ==========================================================================
+// データアクセスは repository.js に集約（taskRepo / projectRepo / transferRepo）
 //
 // 関数一覧:
 //   openCreateTaskDialogForProject(projectId) - プロジェクトからタスク作成ダイアログを開く
@@ -21,7 +22,7 @@ function openCreateTaskDialogForProject(projectId) {
   taskDialogTitle.textContent = "新規タスク作成";
   btnSubmitTask.textContent = "作成する";
 
-  const proj = projects.find(p => p.id === projectId);
+  const proj = projectRepo.findById(projectId);
   if (taskProjectDisplay) taskProjectDisplay.textContent = proj ? proj.name : '---';
 
   populateAssigneeSelect(projectId);
@@ -97,7 +98,7 @@ function openCreateTaskDialog() {
 
 function openCreateChildTaskDialog(parentTaskId) {
   if (!canEditTask()) return;
-  const parent = tasks.find(t => t.id === parentTaskId);
+  const parent = taskRepo.findById(parentTaskId);
   if (!parent) return;
 
   creatingChildParentTaskId = parentTaskId;
@@ -109,7 +110,7 @@ function openCreateChildTaskDialog(parentTaskId) {
   btnSubmitTask.textContent = "作成する";
 
   currentTaskProjectId = parent.projectId;
-  const proj = projects.find(p => p.id === parent.projectId);
+  const proj = projectRepo.findById(parent.projectId);
   if (taskProjectDisplay) taskProjectDisplay.textContent = proj ? proj.name : '---';
 
   populateAssigneeSelect(parent.projectId);
@@ -149,7 +150,7 @@ function openCreateChildTaskDialog(parentTaskId) {
 }
 
 function openEditTaskDialog(taskId) {
-  const task = tasks.find(t => t.id === taskId);
+  const task = taskRepo.findById(taskId);
   if (!task) return;
   if (!isLeafTask(taskId)) {
     alert('管理ノードは編集できません。');
@@ -168,7 +169,7 @@ function openEditTaskDialog(taskId) {
 
   populateAssigneeSelect(task.projectId);
 
-  const proj = projects.find(p => p.id === task.projectId);
+  const proj = projectRepo.findById(task.projectId);
   if (taskProjectDisplay) taskProjectDisplay.textContent = proj ? proj.name : '---';
 
   taskNameInput.value = task.name;
@@ -280,18 +281,18 @@ function handleTaskFormSubmit(e) {
   };
 
   if (editingTaskId !== null) {
-    const taskIndex = tasks.findIndex(t => t.id === editingTaskId);
-    if (taskIndex !== -1) {
-      const oldTask = tasks[taskIndex];
+    const oldTask = taskRepo.findById(editingTaskId);
+    if (oldTask) {
       const oldStatus = oldTask.status;
 
       applyStatusAutoProgress(oldTask, status);
       taskData.progress = oldTask.progress;
 
-      tasks[taskIndex] = { ...oldTask, ...taskData };
+      taskData.id = editingTaskId;
+      const savedTask = taskRepo.save(taskData);
 
       if (oldStatus !== status) {
-        addStatusHistory(tasks[taskIndex], oldStatus, status, '');
+        addStatusHistory(savedTask, oldStatus, status, '');
       }
     }
   } else {
@@ -316,13 +317,12 @@ function handleTaskFormSubmit(e) {
         timestamp: formatTimestamp(new Date())
       });
     }
-    tasks.push(newTask);
+    taskRepo.save(newTask);
   }
 
-  const proj = projects.find(p => p.id === projectId);
+  const proj = projectRepo.findById(projectId);
   if (proj && proj.plannedHours > 0) {
-    const totalTaskHours = tasks
-      .filter(t => t.projectId === projectId)
+    const totalTaskHours = taskRepo.findByProject(projectId)
       .reduce((sum, t) => sum + (t.estimatedHours || 0), 0);
     if (totalTaskHours > proj.plannedHours) {
       setTimeout(() => {

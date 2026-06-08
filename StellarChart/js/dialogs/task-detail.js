@@ -2,6 +2,7 @@
 // StellarChart - Task detail dialog
 // 役割: タスク詳細モーダルの表示・更新・コメント・作業履歴削除を担当する
 // ==========================================================================
+// データアクセスは repository.js に集約（taskRepo / projectRepo / transferRepo）
 //
 // 関数一覧:
 //   currentDetailTaskId (変数)      - 現在開いているタスク詳細のタスクID
@@ -20,7 +21,7 @@ let currentDetailTaskId = null;
 // ステータス履歴・スレッド）をHTML生成し、モーダル表示する
 // 各操作ボタン（更新・転送・子作成・削除）のイベントもここでバインドする
 function openTaskDetail(taskId) {
-  const task = tasks.find(t => t.id === taskId);
+  const task = taskRepo.findById(taskId);
   if (!task) return;
 
   const _isLeaf = isLeafTask(taskId);
@@ -32,7 +33,7 @@ function openTaskDetail(taskId) {
   const computedProgress = getComputedProgress(taskId);
 
   currentDetailTaskId = taskId;
-  const proj = projects.find(p => p.id === task.projectId);
+  const proj = projectRepo.findById(task.projectId);
   const projName = proj ? proj.name : '不明';
   const _canTransfer = canTransfer();
   const _canChangeStatus = _isLeaf && canChangeStatus(task);
@@ -44,7 +45,7 @@ function openTaskDetail(taskId) {
     <div class="detail-section">
       <div class="detail-field-row" style="align-items: center;">
         ${task.wbsCode ? `<div class="detail-field"><span class="detail-wbs-code">${escapeHTML(task.wbsCode)}</span></div>` : ''}
-        ${task.parentTaskId ? (() => { const pt = tasks.find(t => t.id === task.parentTaskId); return pt ? `<div class="detail-field"><span class="detail-label">親タスク</span><span class="detail-value">${escapeHTML(pt.name)}</span></div>` : ''; })() : ''}
+        ${task.parentTaskId ? (() => { const pt = taskRepo.findById(task.parentTaskId); return pt ? `<div class="detail-field"><span class="detail-label">親タスク</span><span class="detail-value">${escapeHTML(pt.name)}</span></div>` : ''; })() : ''}
         <div class="detail-field">
           <span class="detail-label">種別</span>
           <span class="detail-value">${_isLeaf ? '作業ノード' : '管理ノード'}</span>
@@ -305,7 +306,7 @@ function openTaskDetail(taskId) {
 // --- effortLog 削除 ---
 // 指定された作業履歴エントリを削除し、実績工数を再計算して再描画する
 function deleteEffortLogEntry(taskId, logId) {
-  const task = tasks.find(t => t.id === taskId);
+  const task = taskRepo.findById(taskId);
   if (!task) return;
   ensureEffortLog(task);
   task.effortLog = task.effortLog.filter(e => e.id !== logId);
@@ -318,7 +319,7 @@ function deleteEffortLogEntry(taskId, logId) {
 // --- スレッドコメント追加 ---
 // タスクのスレッドにコメントを追加し、詳細ダイアログを再描画する
 function addComment(taskId, content) {
-  const task = tasks.find(t => t.id === taskId);
+  const task = taskRepo.findById(taskId);
   if (!task) return;
 
   const now = new Date();
@@ -344,7 +345,7 @@ function addComment(taskId, content) {
 // 権限チェック・自動進捗適用・ステータス履歴記録を行ってタスクを更新する
 // 要対応への変更時はコメント入力を必須とする
 function updateTaskFromDetail(taskId) {
-  const task = tasks.find(t => t.id === taskId);
+  const task = taskRepo.findById(taskId);
   if (!task) return;
 
   if (!isLeafTask(taskId)) {

@@ -1,0 +1,73 @@
+StellarChart リファクタリング計画
+==================================
+js/app.js (~3200行) を機能別ファイルに分割
+
+Phase 1: データと純粋関数（安全）
+  Step 1  data.js
+         グローバル配列（employees, projects, tasks）+ 定数（RANK_*, *_LABELS）
+         → 定義の移動のみ、影響ゼロ
+
+  Step 2  helpers.js
+         純粋関数（isLeafTask, getComputed*, formatDate, escapeHTML 等20個程度）
+         → 関数が別ファイルになるだけ
+
+Phase 2: ユーティリティ（低リスク）
+  Step 3  auth.js
+         hasRank, canEditTask 等の権限関数
+
+  Step 4  utils/dom.js
+         showTaskError, clearTaskErrors, updateTaskEndDateWarning, toggleClass 等
+
+  Step 5  utils/flatpickr.js
+         Flatpickr 設定オブジェクト（fpConfig）
+
+Phase 3: フォームダイアログ（中リスク・比較的独立）
+  Step 6  dialogs/task-form.js
+         openCreateTaskDialog, openCreateChildTaskDialog, openEditTaskDialog, handleTaskFormSubmit
+
+  Step 7  dialogs/project-form.js
+         プロジェクト作成/編集フォーム関連
+
+  Step 8  dialogs/employee.js
+         社員選択ダイアログ関連
+
+Phase 4: 描画コンポーネント（高リスク・相互参照あり）
+  Step 9   components/tasks.js
+           タスク一覧描画 + フィルター
+
+  Step 10  components/projects.js
+           プロジェクト一覧描画 + CRUD
+
+  Step 11  components/wbs.js
+           WBSツリー + 工数WBSツリー
+
+  Step 12  components/issues.js
+           要課題パネル
+
+Phase 5: 複合ダイアログ（高リスク）
+  Step 13  dialogs/task-detail.js
+           タスク詳細ダイアログ（一番巨大・依存最多）
+
+Phase 6: 仕上げ
+  Step 14  app.js
+           エントリーポイントに縮退（初期化とナビ制御のみ）
+
+最終構成:
+  js/
+  ├── app.js              # エントリーポイント
+  ├── data.js             # データ定義
+  ├── auth.js             # 権限
+  ├── helpers.js          # 純粋関数
+  ├── components/
+  │   ├── projects.js
+  │   ├── tasks.js
+  │   ├── wbs.js
+  │   └── issues.js
+  ├── dialogs/
+  │   ├── task-detail.js
+  │   ├── task-form.js
+  │   ├── project-form.js
+  │   └── employee.js
+  └── utils/
+      ├── flatpickr.js
+      └── dom.js

@@ -3,6 +3,7 @@
 // 役割: プロジェクト作成/編集ダイアログの表示・フォーム送信処理を行う
 //       バリデーション（メンバー必須・RankB以上必須など）も担当する
 // ==========================================================================
+// データアクセスは repository.js に集約（taskRepo / projectRepo / transferRepo）
 //
 // 関数一覧:
 //   openCreateDialog()       - 新規プロジェクト作成ダイアログを開く
@@ -45,7 +46,7 @@ function openCreateDialog() {
 }
 
 function openEditDialog(projectId) {
-  const proj = projects.find(p => p.id === projectId);
+  const proj = projectRepo.findById(projectId);
   if (!proj) return;
 
   editingProjectId = projectId;
@@ -146,7 +147,7 @@ function handleFormSubmit(e) {
   }
 
   const creator = editingProjectId
-    ? (projects.find(p => p.id === editingProjectId)?.creator || currentUser.name)
+    ? (projectRepo.findById(editingProjectId)?.creator || currentUser.name)
     : currentUser.name;
   if (creator && !members.includes(creator)) {
     members.unshift(creator);
@@ -169,10 +170,10 @@ function handleFormSubmit(e) {
   if (hasError) return;
 
   if (editingProjectId !== null) {
-    const projIndex = projects.findIndex(p => p.id === editingProjectId);
-    if (projIndex !== -1) {
-      projects[projIndex] = {
-        ...projects[projIndex],
+    const existing = projectRepo.findById(editingProjectId);
+    if (existing) {
+      projectRepo.save({
+        ...existing,
         name,
         description,
         startDate,
@@ -181,10 +182,10 @@ function handleFormSubmit(e) {
         progress,
         plannedHours: isNaN(plannedHours) ? 0 : plannedHours,
         members
-      };
+      });
     }
   } else {
-    const newProject = {
+    projectRepo.save({
       id: `proj-${Date.now()}`,
       name,
       description,
@@ -195,8 +196,7 @@ function handleFormSubmit(e) {
       plannedHours: isNaN(plannedHours) ? 0 : plannedHours,
       creator: currentUser.name,
       members
-    };
-    projects.push(newProject);
+    });
   }
 
   renderProjects();

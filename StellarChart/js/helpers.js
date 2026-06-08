@@ -4,6 +4,8 @@
 //       DOM操作を含まない純粋関数群
 // ==========================================================================
 //
+// データアクセスは repository.js に集約（taskRepo / projectRepo / transferRepo）
+//
 // 関数一覧:
 //   isLeafTask                - 末端タスク判定
 //   getLeafDescendants        - 末端タスク一覧取得（再帰）
@@ -36,37 +38,28 @@
 // --- 末端タスク判定 ---
 // 子タスクを持たないタスク（実際に作業ができるタスク）かどうかを返す
 function isLeafTask(taskId) {
-  return !tasks.some(t => t.parentTaskId === taskId);
+  return !taskRepo.hasChildren(taskId);
 }
 
 // --- 全末端タスク取得 ---
 // 指定タスク以下の末端タスクを再帰的に収集して返す
 function getLeafDescendants(taskId) {
-  const directChildren = tasks.filter(t => t.parentTaskId === taskId);
-  const result = [];
-  directChildren.forEach(child => {
-    if (isLeafTask(child.id)) {
-      result.push(child);
-    } else {
-      result.push(...getLeafDescendants(child.id));
-    }
-  });
-  return result;
+  return taskRepo.getLeaves(taskId);
 }
 
 // --- 実績時間 (再帰的集計) ---
 function getComputedActualHours(taskId) {
-  const task = tasks.find(t => t.id === taskId);
+  const task = taskRepo.findById(taskId);
   if (!task) return 0;
   if (isLeafTask(taskId)) return task.actualHours || 0;
-  const directChildren = tasks.filter(t => t.parentTaskId === taskId);
+  const directChildren = taskRepo.findByParent(taskId);
   const childrenSum = directChildren.reduce((sum, t) => sum + getComputedActualHours(t.id), 0);
   return (task.actualHours || 0) + childrenSum;
 }
 
 // --- ステータス (子孫から最優先) ---
 function getComputedStatus(taskId) {
-  const task = tasks.find(t => t.id === taskId);
+  const task = taskRepo.findById(taskId);
   if (!task) return 'not_started';
   if (isLeafTask(taskId)) return task.status;
   const leaves = getLeafDescendants(taskId);
@@ -83,7 +76,7 @@ function getComputedStatus(taskId) {
 // --- 担当者一覧取得 ---
 function getComputedAssignees(taskId) {
   if (isLeafTask(taskId)) {
-    const task = tasks.find(t => t.id === taskId);
+    const task = taskRepo.findById(taskId);
     return task && task.assignee ? [task.assignee] : [];
   }
   const leaves = getLeafDescendants(taskId);
@@ -100,7 +93,7 @@ function getComputedAssigneeLabel(taskId) {
 
 // --- 進捗率 (子孫の平均) ---
 function getComputedProgress(taskId) {
-  const task = tasks.find(t => t.id === taskId);
+  const task = taskRepo.findById(taskId);
   if (!task) return 0;
   if (isLeafTask(taskId)) return task.progress || 0;
   const leaves = getLeafDescendants(taskId);
@@ -111,11 +104,11 @@ function getComputedProgress(taskId) {
 
 // --- 実績時間の内訳 (Own / Children) ---
 function getActualHoursBreakdown(taskId) {
-  const task = tasks.find(t => t.id === taskId);
+  const task = taskRepo.findById(taskId);
   if (!task) return { own: 0, children: 0, total: 0 };
   const own = task.actualHours || 0;
   if (isLeafTask(taskId)) return { own, children: 0, total: own };
-  const directChildren = tasks.filter(t => t.parentTaskId === taskId);
+  const directChildren = taskRepo.findByParent(taskId);
   const children = directChildren.reduce((sum, t) => sum + getComputedActualHours(t.id), 0);
   return { own, children, total: own + children };
 }
@@ -123,13 +116,13 @@ function getActualHoursBreakdown(taskId) {
 // --- 可視プロジェクト一覧 ---
 function getVisibleProjects() {
   return hasRank('RankS')
-    ? projects
-    : projects.filter(p => p.members && p.members.includes(currentUser.name));
+    ? projectRepo.findAll()
+    : projectRepo.findVisible(currentUser);
 }
 
 // --- 可視タスク一覧 (工数) ---
 function getVisibleTasksForEffort(projectId) {
-  const projectTasks = tasks.filter(t => t.projectId === projectId);
+  const projectTasks = taskRepo.findByProject(projectId);
   if (hasRank('RankS') || hasRank('RankA')) {
     return projectTasks;
   }
@@ -189,29 +182,22 @@ function escapeHTML(str) {
 // --- WBSヘルパー ---
 
 function hasChildren(taskId) {
-  return tasks.some(t => t.parentTaskId === taskId);
+  return taskRepo.hasChildren(taskId);
 }
 
 function getTaskDepth(taskId) {
   let depth = 1;
-  let current = tasks.find(t => t.id === taskId);
+  let current = taskRepo.findById(taskId);
   while (current && current.parentTaskId) {
     depth++;
-    current = tasks.find(t => t.id === current.parentTaskId);
+    current = taskRepo.findById(current.parentTaskId);
     if (depth > 10) break;
   }
   return depth;
 }
 
 function getNextWBSCode(projectId, parentTaskId) {
-  const siblings = tasks.filter(t =>
-    t.projectId === projectId &&
-    t.parentTaskId === parentTaskId
-  );
-  const parent = parentTaskId ? tasks.find(t => t.id === parentTaskId) : null;
-  const parentCode = parent ? parent.wbsCode : '';
-  const nextNumber = siblings.length + 1;
-  return parentCode ? `${parentCode}.${nextNumber}` : `${nextNumber}`;
+  return taskRepo.nextWBSCode(parentTaskId);
 }
 
 function sortByWBSCode(a, b) {
@@ -226,8 +212,8 @@ function sortByWBSCode(a, b) {
 }
 
 function buildTaskTree(projectId, parentTaskId) {
-  const children = tasks
-    .filter(t => t.projectId === projectId && t.parentTaskId === parentTaskId)
+  const children = taskRepo.findByProject(projectId)
+    .filter(t => t.parentTaskId === parentTaskId)
     .sort(sortByWBSCode);
   return children.map(task => ({
     task,

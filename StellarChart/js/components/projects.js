@@ -3,6 +3,7 @@
 // 役割: プロジェクト一覧画面の描画・フィルタリング・削除・
 //       プロジェクトセレクトボックス（タスクフィルター用）の構築を行う
 // ==========================================================================
+// データアクセスは repository.js に集約（taskRepo / projectRepo / transferRepo）
 //
 // 関数一覧:
 //   applyRankBasedUI       - ランクに応じて「新規プロジェクト」ボタンの表示/非表示を制御
@@ -33,7 +34,7 @@ function renderProjects() {
   const startDateFilter = filterStartDateInput.value;
   const endDateFilter = filterEndDateInput.value;
 
-  const filteredProjects = projects.filter(proj => {
+  const filteredProjects = projectRepo.findAll().filter(proj => {
     if (keyword) {
       const nameMatch = proj.name.toLowerCase().includes(keyword);
       const descMatch = proj.description.toLowerCase().includes(keyword);
@@ -139,8 +140,7 @@ function renderProjects() {
 // --- プロジェクト削除 ---
 function deleteProject(projectId) {
   if (!confirm('このプロジェクトを削除してもよろしいですか？\n関連するタスクもすべて削除されます。')) return;
-  projects = projects.filter(p => p.id !== projectId);
-  tasks = tasks.filter(t => t.projectId !== projectId);
+  projectRepo.delete(projectId);
   renderProjects();
   populateProjectSelects();
   populateWBSProjectSelect();

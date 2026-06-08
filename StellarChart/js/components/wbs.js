@@ -3,6 +3,7 @@
 // 役割: WBSツリー表示・工数集計画面の描画、および
 //       各画面で使用するプロジェクトセレクトボックスの構築を行う
 // ==========================================================================
+// データアクセスは repository.js に集約（taskRepo / projectRepo / transferRepo）
 //
 // 関数一覧:
 //   populateEffortProjectSelect      - 工数集計画面のプロジェクトセレクト構築
@@ -41,7 +42,7 @@ function populateWBSProjectSelect() {
     opt.textContent = proj.name;
     wbsProjectSelect.appendChild(opt);
   });
-  if (currentValue && projects.some(p => p.id === currentValue)) {
+  if (currentValue && projectRepo.findById(currentValue)) {
     wbsProjectSelect.value = currentValue;
   }
 }
@@ -66,8 +67,8 @@ function renderWBS() {
 
   if (wbsMyTasksOnly.checked && currentUser) {
     const myTaskIds = new Set(
-      tasks
-        .filter(t => t.projectId === projectId && t.assignee === currentUser.name)
+      taskRepo.findByProject(projectId)
+        .filter(t => t.assignee === currentUser.name)
         .map(t => t.id)
     );
     const filteredTree = filterTreeByVisible(tree, myTaskIds);
@@ -134,7 +135,7 @@ function renderEffortSummary() {
     return;
   }
 
-  const proj = projects.find(p => p.id === projectId);
+  const proj = projectRepo.findById(projectId);
   if (!proj) {
     effortSummaryGrid.innerHTML = '<div class="effort-empty">プロジェクトが見つかりません</div>';
     return;
@@ -197,8 +198,8 @@ function renderEffortSummary() {
 
 // --- WBS別工数集計 ---
 function renderEffortWBSTree(projectId, parentTaskId, visibleTasks) {
-  const children = tasks
-    .filter(t => t.projectId === projectId && t.parentTaskId === parentTaskId)
+  const children = taskRepo.findByProject(projectId)
+    .filter(t => t.parentTaskId === parentTaskId)
     .sort(sortByWBSCode);
 
   if (children.length === 0 && parentTaskId === null) {
@@ -206,7 +207,7 @@ function renderEffortWBSTree(projectId, parentTaskId, visibleTasks) {
   }
 
   function calcVisibleDescendantHours(taskId) {
-    const directChildren = tasks.filter(t => t.projectId === projectId && t.parentTaskId === taskId);
+    const directChildren = taskRepo.findByProject(projectId).filter(t => t.parentTaskId === taskId);
     let est = 0;
     let act = 0;
     directChildren.forEach(dc => {

@@ -3,6 +3,7 @@
 // 役割: プロジェクトメンバー選択ダイアログの表示・社員検索・選択管理を行う
 //       作成者は強制的に選択され、削除不可
 // ==========================================================================
+// データアクセスは repository.js に集約（taskRepo / projectRepo / transferRepo）
 //
 // 関数一覧:
 //   openEmployeeDialog()              - 社員選択ダイアログを開く（現在のメンバーを初期表示）
@@ -19,7 +20,7 @@ function openEmployeeDialog() {
     .filter(m => m.length > 0);
 
   const creator = editingProjectId
-    ? projects.find(p => p.id === editingProjectId)?.creator
+    ? projectRepo.findById(editingProjectId)?.creator
     : currentUser.name;
   if (creator && !currentMembers.includes(creator)) {
     currentMembers.push(creator);
@@ -53,7 +54,7 @@ function renderEmployees(filterText = '') {
 
     const isChecked = selectedEmployeeNames.has(emp.name);
     const creator = editingProjectId
-      ? projects.find(p => p.id === editingProjectId)?.creator
+      ? projectRepo.findById(editingProjectId)?.creator
       : currentUser.name;
     const isCreator = emp.name === creator;
 
@@ -93,7 +94,7 @@ function handleCheckboxToggle(checkbox) {
 
 function confirmSelectedEmployees() {
   const creator = editingProjectId
-    ? projects.find(p => p.id === editingProjectId)?.creator
+    ? projectRepo.findById(editingProjectId)?.creator
     : currentUser.name;
   if (creator) selectedEmployeeNames.add(creator);
 
