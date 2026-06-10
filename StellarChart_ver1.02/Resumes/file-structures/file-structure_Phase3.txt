@@ -1,0 +1,83 @@
+StellarChart ファイル構成（Phase 3 完了時点）
+===========================================
+2026/06/04
+
+js/
+├── app.js              (1649行)
+│   エントリーポイント兼メインロジック（残り29関数）
+│   初期化 (initApp)、イベントリスナー
+│   ビュー切り替え (switchView)
+│   レンダリング (renderProjects, renderTasks, renderWBS, renderEffortSummary,
+│                 renderTreeNodes, renderEffortWBSTree, filterTreeByVisible)
+│   セレクトボックス構築 (populateProjectSelects, populateEffortProjectSelect,
+│                        populateWBSProjectSelect, populateAssigneeSelect)
+│   フィルター (resetFilters, resetTaskFilters, applyRankBasedUI)
+│   タスク詳細ダイアログ (openTaskDetail, updateTaskFromDetail, addComment,
+│                        deleteEffortLogEntry)
+│   タスクCRUD (deleteProject, deleteTask)
+│   要課題 (getActiveIssues, updateIssueBadge, openIssuePanel, closeIssuePanel)
+│   転送 (openTransferDialog, confirmTransfer)
+│   ログイン (showLoginDialog)
+│   グローバル変数 (currentUser, editingProjectId, currentView 等)
+│   DOM要素参照 (projectGrid, taskForm, taskDetailDialog 等)
+│
+├── data.js             (419行)
+│   全定数・モックデータ
+│   RANK_LABELS, RANK_LEVEL, STATUS_PRIORITY
+│   projects (4件), tasks (16件), employeeMaster (10人), transfers
+│
+├── auth.js             (17行)
+│   権限ヘルパー関数
+│   hasRank, canCreateProject, canEditProject, canDeleteProject
+│   canCreateTask, canEditTask, canDeleteTask, canTransfer, canChangeStatus
+│
+├── helpers.js          (259行)
+│   純粋関数（DOM操作なし）
+│   末端タスク判定: isLeafTask, getLeafDescendants
+│   集計: getComputedActualHours, getComputedStatus, getComputedAssignees
+│         getComputedAssigneeLabel, getComputedProgress, getActualHoursBreakdown
+│   可視性: getVisibleProjects, getVisibleTasksForEffort
+│   フォーマット: formatDate, getStatusLabel, getDifficultyLabel, getPriorityLabel
+│   WBS: hasChildren, getTaskDepth, getNextWBSCode, sortByWBSCode, buildTaskTree
+│   工数: ensureEffortLog, recalcActualHours, formatTimestamp
+│   ステータス: applyStatusAutoProgress, addStatusHistory
+│   escapeHTML
+│
+├── utils/
+│   ├── flatpickr.js    (45行)
+│   │   Flatpickr設定オブジェクト (fpConfig)
+│   │   インスタンス変数宣言 (filterStartFp, filterEndFp, projStartFp,
+│   │   projEndFp, taskStartDateFp, taskEndDateFp)
+│   │
+│   └── dom.js          (75行)
+│       エラー・警告表示ヘルパー
+│       clearErrors, showFieldError (プロジェクト用)
+│       clearTaskErrors, showTaskError, clearTaskWarnings (タスク用)
+│       updateTaskEndDateWarning (日付超過警告)
+│
+├── dialogs/
+│   ├── task-form.js    (329行)
+│   │   タスク作成/編集フォームダイアログ
+│   │   openCreateTaskDialogForProject, openCreateTaskDialog
+│   │   openCreateChildTaskDialog, openEditTaskDialog
+│   │   handleTaskFormSubmit
+│   │
+│   ├── project-form.js (196行)
+│   │   プロジェクト作成/編集フォームダイアログ
+│   │   openCreateDialog, openEditDialog, closeCreateDialog
+│   │   handleFormSubmit
+│   │
+│   └── employee.js     (92行)
+│       社員選択ダイアログ
+│       openEmployeeDialog, renderEmployees
+│       handleCheckboxToggle, confirmSelectedEmployees
+
+index.html の script ロード順:
+  data.js → auth.js → helpers.js → utils/flatpickr.js → utils/dom.js
+  → dialogs/task-form.js → dialogs/project-form.js → dialogs/employee.js → app.js
+
+残りのリファクタリング計画 (Phase 4〜6):
+  Phase 4: components/ 描画分離 (高リスク)
+    tasks.js, projects.js, wbs.js, issues.js
+  Phase 5: dialogs/task-detail.js (高リスク)
+  Phase 6: app.js エントリーポイント化

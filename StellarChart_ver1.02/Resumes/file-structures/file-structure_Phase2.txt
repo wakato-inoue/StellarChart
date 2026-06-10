@@ -1,0 +1,60 @@
+StellarChart ファイル構成（Phase 2 完了時点）
+===========================================
+2026/06/04
+
+js/
+├── app.js              (2285行)
+│   エントリーポイント兼メインロジック
+│   初期化 (initApp)、イベントリスナー、ビュー切り替え
+│   レンダリング (renderProjects, renderTasks, renderWBS, renderEffortSummary)
+│   ダイアログ制御 (openTaskDetail, openCreateTaskDialog, openEditTaskDialog, ...)
+│   フォーム送信 (handleFormSubmit, handleTaskFormSubmit)
+│   タスクCRUD (deleteTask, updateTaskFromDetail, addComment)
+│   工数管理 (deleteEffortLogEntry)
+│   要課題 (getActiveIssues, openIssuePanel, confirmTransfer)
+│   社員選択 (openEmployeeDialog, renderEmployees)
+│   グローバル変数 (currentUser, editingProjectId, currentView 等)
+│   DOM要素参照 (projectGrid, taskForm, ...)
+│
+├── data.js             (419行)
+│   全定数・モックデータ
+│   RANK_LABELS, RANK_LEVEL, STATUS_PRIORITY
+│   projects (4件), tasks (16件), employeeMaster (10人), transfers
+│
+├── auth.js             (17行)
+│   権限ヘルパー関数
+│   hasRank, canCreateProject, canEditProject, canDeleteProject
+│   canCreateTask, canEditTask, canDeleteTask, canTransfer, canChangeStatus
+│
+├── helpers.js          (259行)
+│   純粋関数（DOM操作なし）
+│   末端タスク判定: isLeafTask, getLeafDescendants
+│   集計: getComputedActualHours, getComputedStatus, getComputedAssignees
+│         getComputedAssigneeLabel, getComputedProgress, getActualHoursBreakdown
+│   可視性: getVisibleProjects, getVisibleTasksForEffort
+│   フォーマット: formatDate, getStatusLabel, getDifficultyLabel, getPriorityLabel
+│   WBS: hasChildren, getTaskDepth, getNextWBSCode, sortByWBSCode, buildTaskTree
+│   工数: ensureEffortLog, recalcActualHours, formatTimestamp
+│   ステータス: applyStatusAutoProgress, addStatusHistory
+│   escapeHTML
+│
+├── utils/
+│   ├── flatpickr.js    (45行)
+│   │   Flatpickr設定オブジェクト (fpConfig)
+│   │   インスタンス変数宣言 (filterStartFp, filterEndFp, projStartFp,
+│   │   projEndFp, taskStartDateFp, taskEndDateFp)
+│   │
+│   └── dom.js          (75行)
+│       エラー・警告表示ヘルパー
+│       プロジェクト用: clearErrors, showFieldError
+│       タスク用: clearTaskErrors, showTaskError, clearTaskWarnings
+│       日付超過警告: updateTaskEndDateWarning
+
+index.html の script ロード順:
+  data.js → auth.js → helpers.js → utils/flatpickr.js → utils/dom.js → app.js
+
+残りのリファクタリング計画 (Phase 3〜6):
+  Phase 3: dialogs/task-form.js (中リスク)
+  Phase 4: components/ 描画分離 (高リスク)
+  Phase 5: dialogs/task-detail.js (高リスク)
+  Phase 6: app.js エントリーポイント化

@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline' 'unsafe-eval'; style-src 'self' https://cdn.jsdelivr.net https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:;">
+  <title>StellarChart - プロジェクト管理ツール</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Flatpickr CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- ログインダイアログ -->
+  <dialog id="login-dialog" class="glass-dialog login-dialog">
+    <div class="dialog-header">
+      <h2>StellarChart にログイン</h2>
+      <button type="button" id="btn-close-login" class="btn-close">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="login-body">
+      <p class="login-desc">アカウントを選択してください</p>
+      <div id="login-emp-list" class="login-emp-list">
+        <!-- JSで動的に社員カードを挿入 -->
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" id="btn-login" class="btn btn-primary" disabled>ログイン</button>
+    </div>
+  </dialog>
+
+  <div class="app-container">
+    <!-- WASMローディングオーバーレイ -->
+    <div id="loading-overlay" class="loading-overlay">
+      <div class="loading-spinner"></div>
+      <p>データベースを読み込み中...</p>
+    </div>
+
+    <!-- サイドバー -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <span class="brand-icon">✨</span>
+        <span class="brand-name">StellarChart</span>
+      </div>
+      <nav class="sidebar-nav">
+        <ul>
+          <li class="active">
+            <a href="#" id="nav-projects">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="nav-icon"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m3.6 9 16.8 6"/><path d="M12 2v20"/><path d="M2 12h20"/><path d="m20.4 9-16.8 6"/></svg>
+              プロジェクト一覧
+            </a>
+          </li>
+            <li>
+             <a href="#" id="nav-tasks">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="nav-icon"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                 タスク一覧
+             </a>
+            </li>
+            <li>
+              <a href="#" id="btn-issues">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="nav-icon"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                依頼
+                <span id="issue-badge" class="notif-badge hidden">0</span>
+              </a>
+            </li>
+           <li>
+             <a href="#" id="nav-wbs">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="nav-icon"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/><path d="M3 9h18"/><path d="M3 15h18"/></svg>
+              WBS
+            </a>
+          </li>
+           <li>
+             <a href="#" id="nav-effort">
+               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="nav-icon"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+               工数集計
+             </a>
+           </li>
+          </ul>
+       </nav>
+       <div class="sidebar-footer">
+          <div class="user-profile">
+           <div class="user-avatar">SU</div>
+           <div class="user-info">
+              <p class="user-name"></p>
+              <p class="user-role"></p>
+           </div>
+           <button type="button" id="btn-logout" class="btn-logout" title="ログアウト">
+             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+           </button>
+         </div>
+       </div>
+    </aside>
+
+    <!-- メインコンテンツ -->
+    <main class="main-content">
+      <!-- ヘッダー -->
+      <header class="main-header">
+        <div class="header-title-area">
+          <h1>プロジェクト一覧</h1>
+          <p class="header-subtitle">現在参画しているすべての案件の進捗および管理を行います</p>
+        </div>
+        <button id="btn-create-project" class="btn btn-primary">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="btn-icon"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          新規プロジェクト
+        </button>
+      </header>
+
+      <!-- 検索・フィルターエリア -->
+      <section class="search-panel">
+        <div class="search-panel-grid">
+          <!-- キーワード検索 -->
+          <div class="search-field keyword-field">
+            <label for="search-keyword">検索キーワード</label>
+            <div class="input-with-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="input-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input type="text" id="search-keyword" placeholder="プロジェクト名、概要で検索...">
+            </div>
+          </div>
+
+          <!-- ステータスフィルター -->
+          <div class="search-field">
+            <label for="filter-status">ステータス</label>
+            <select id="filter-status">
+              <option value="all">すべて</option>
+              <option value="not_started">未着手</option>
+              <option value="in_progress">進行中</option>
+              <option value="suspended">中断</option>
+              <option value="completed">完了</option>
+            </select>
+          </div>
+
+          <!-- 開始日範囲 -->
+          <div class="search-field">
+            <label for="filter-start-date">開始日（これ以降）</label>
+            <input type="text" id="filter-start-date" placeholder="選択してください...">
+          </div>
+
+          <!-- 終了日範囲 -->
+          <div class="search-field">
+            <label for="filter-end-date">終了日（これ以前）</label>
+            <input type="text" id="filter-end-date" placeholder="選択してください...">
+          </div>
+        </div>
+
+        <!-- フィルター操作ボタン -->
+        <div class="filter-actions">
+          <button id="btn-reset-filters" class="btn btn-secondary">
+            フィルターをリセット
+          </button>
+        </div>
+      </section>
+
+      <!-- プロジェクト一覧グリッド -->
+      <div id="project-list-grid" class="project-grid">
+        <!-- JSで動的にプロジェクトカードを挿入 -->
+      </div>
+
+      <!-- 空状態表示 -->
+      <div id="empty-state" class="empty-state hidden">
+        <div class="empty-state-icon">🌌</div>
+        <h3>プロジェクトが見つかりません</h3>
+        <p>検索条件を変更するか、新しいプロジェクトを作成してください。</p>
+      </div>
+
+      <!-- ===== タスク一覧ビュー ===== -->
+      <section id="task-list-view" class="view-section hidden">
+        <!-- ヘッダー -->
+        <header class="main-header">
+          <div class="header-title-area">
+            <h1>タスク一覧</h1>
+            <p class="header-subtitle">選択したプロジェクトに紐づくタスクを管理します</p>
+          </div>
+        </header>
+
+        <!-- 検索・フィルターエリア -->
+        <section class="search-panel">
+          <div class="search-panel-grid task-filter-grid">
+            <div class="search-field">
+              <label for="task-search-keyword">検索キーワード</label>
+              <div class="input-with-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="input-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="task-search-keyword" placeholder="タスク名、概要で検索...">
+              </div>
+            </div>
+            <div class="search-field">
+              <label for="task-filter-project">プロジェクト</label>
+              <select id="task-filter-project">
+                <option value="all">すべてのプロジェクト</option>
+              </select>
+            </div>
+            <div class="search-field">
+              <label for="task-filter-status">ステータス</label>
+              <select id="task-filter-status">
+                <option value="all">すべて</option>
+                <option value="not_started">未着手</option>
+                <option value="in_progress">進行中</option>
+                <option value="completed">完了</option>
+                <option value="suspended">中断</option>
+                <option value="needs_action">要対応</option>
+              </select>
+            </div>
+            <div class="search-field">
+              <label for="task-filter-priority">優先度</label>
+              <select id="task-filter-priority">
+                <option value="all">すべて</option>
+                <option value="high">高</option>
+                <option value="medium">中</option>
+                <option value="low">低</option>
+              </select>
+            </div>
+          </div>
+          <div class="filter-actions">
+            <label class="checkbox-label" style="margin-right:auto;">
+              <input type="checkbox" id="task-filter-done">
+              <span>完了含む</span>
+            </label>
+            <button id="btn-reset-task-filters" class="btn btn-secondary">
+              フィルターをリセット
+            </button>
+          </div>
+        </section>
+
+        <!-- タスク一覧グリッド -->
+        <div id="task-list-grid" class="task-grid">
+          <!-- JSで動的にタスクカードを挿入 -->
+        </div>
+
+        <!-- タスク空状態 -->
+        <div id="task-empty-state" class="empty-state hidden">
+          <div class="empty-state-icon">📋</div>
+          <h3>タスクが見つかりません</h3>
+          <p>検索条件を変更するか、新しいタスクを作成してください。</p>
+        </div>
+      </section>
+
+      <!-- ===== WBSビュー ===== -->
+      <section id="wbs-view" class="view-section hidden">
+        <header class="main-header">
+          <div class="header-title-area">
+            <h1>WBS</h1>
+            <p class="header-subtitle">プロジェクトのWBS（Work Breakdown Structure）をツリー形式で表示します</p>
+          </div>
+        </header>
+
+        <section class="search-panel">
+          <div class="search-panel-grid" style="grid-template-columns: 1fr auto;">
+            <div class="search-field">
+              <label for="wbs-project-select">プロジェクト選択</label>
+              <select id="wbs-project-select">
+                <option value="">選択してください</option>
+              </select>
+            </div>
+            <div class="search-field" style="display: flex; align-items: flex-end; padding-bottom: 4px;">
+              <label class="checkbox-label">
+                <input type="checkbox" id="wbs-my-tasks-only">
+                <span>自分の担当のみ</span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <div id="wbs-tree-container" class="wbs-tree-container">
+        </div>
+
+        <div id="wbs-empty-state" class="empty-state">
+          <div class="empty-state-icon">🌳</div>
+          <h3>WBSを表示するプロジェクトを選択してください</h3>
+          <p>プロジェクトを選択すると、タスクの階層構造がツリー形式で表示されます。</p>
+        </div>
+      </section>
+
+      <!-- ===== 工数集計ビュー ===== -->
+      <section id="effort-summary-view" class="view-section hidden">
+        <header class="main-header">
+          <div class="header-title-area">
+            <h1>工数集計</h1>
+            <p class="header-subtitle">プロジェクトの予定工数・実績工数を集計します</p>
+          </div>
+        </header>
+        <div class="effort-filter-bar">
+          <div class="form-group" style="margin:0;max-width:400px;">
+            <select id="effort-project-select" class="form-input">
+              <option value="">プロジェクトを選択してください</option>
+            </select>
+          </div>
+        </div>
+        <div id="effort-summary-grid" class="effort-summary-grid">
+          <!-- JSで動的に挿入 -->
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- 新規作成モーダルダイアログ -->
+  <dialog id="project-dialog" class="glass-dialog">
+    <div class="dialog-header">
+      <h2 id="project-dialog-title">新規プロジェクト作成</h2>
+      <button type="button" id="btn-close-dialog" class="btn-close">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <form id="project-form" method="dialog" novalidate>
+      <div class="form-group">
+        <label for="proj-name">プロジェクト名 <span class="required">*</span></label>
+        <input type="text" id="proj-name" name="name" maxlength="30" placeholder="例: StellarChart開発">
+        <span class="error-msg" id="error-name"></span>
+        <span class="char-count" id="count-name">0 / 30</span>
+      </div>
+
+      <div class="form-group">
+        <label for="proj-description">概要 <span class="required">*</span></label>
+        <textarea id="proj-description" name="description" rows="4" maxlength="200" placeholder="プロジェクトの主な目的や概要を入力してください"></textarea>
+        <span class="error-msg" id="error-description"></span>
+        <span class="char-count" id="count-description">0 / 200</span>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="proj-start-date">開始日 <span class="required">*</span></label>
+          <input type="text" id="proj-start-date" name="startDate" placeholder="開始日を選択...">
+          <span class="error-msg" id="error-startDate"></span>
+        </div>
+        <div class="form-group">
+          <label for="proj-end-date">終了日 <span class="required">*</span></label>
+          <input type="text" id="proj-end-date" name="endDate" placeholder="終了日を選択...">
+          <span class="error-msg" id="error-endDate"></span>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="proj-status">ステータス <span class="required">*</span></label>
+            <select id="proj-status" name="status">
+              <option value="not_started">未着手</option>
+              <option value="in_progress">進行中</option>
+              <option value="suspended">中断</option>
+              <option value="completed">完了</option>
+            </select>
+          <span class="error-msg" id="error-status"></span>
+        </div>
+        <div class="form-group">
+          <label for="proj-progress">進捗率 (%)</label>
+          <div class="progress-slider-container">
+            <input type="range" id="proj-progress" name="progress" min="0" max="100" value="0" step="5">
+            <span id="progress-val-display">0%</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="proj-planned-hours">予定工数 (h)</label>
+          <input type="number" id="proj-planned-hours" name="plannedHours" min="0" max="99999" placeholder="0">
+          <span class="error-msg" id="error-proj-plannedHours"></span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="proj-members">プロジェクトメンバー</label>
+        <div class="input-with-button">
+          <input type="text" id="proj-members" name="members" readonly placeholder="メンバー選択ボタンから選択してください" style="cursor: not-allowed; background: rgba(255,255,255,0.02);">
+          <button type="button" id="btn-select-members" class="btn btn-secondary">メンバー選択...</button>
+        </div>
+        <span class="help-text">右側の「メンバー選択」ボタンを押して、社員マスタから選択してください（手動編集不可）。</span>
+        <span class="error-msg" id="error-members"></span>
+      </div>
+
+      <div class="form-group">
+        <label>作成者</label>
+        <p id="proj-creator" class="static-field">自動入力されます</p>
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" id="btn-cancel-project" class="btn btn-secondary">キャンセル</button>
+        <button type="submit" id="btn-submit-project" class="btn btn-primary">作成する</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- タスク作成・編集モーダルダイアログ -->
+  <dialog id="task-dialog" class="glass-dialog">
+    <div class="dialog-header">
+      <h2 id="task-dialog-title">新規タスク作成</h2>
+      <button type="button" id="btn-close-task-dialog" class="btn-close">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <form id="task-form" method="dialog" novalidate>
+      <div class="form-group">
+        <label for="task-name">タスク名 <span class="required">*</span></label>
+        <input type="text" id="task-name" name="name" maxlength="50" placeholder="例: モジュールAの設計">
+        <span class="error-msg" id="error-task-name"></span>
+        <span class="char-count" id="count-task-name">0 / 50</span>
+      </div>
+
+      <div class="form-group">
+        <label for="task-description">説明</label>
+        <textarea id="task-description" name="description" rows="3" maxlength="300" placeholder="タスクの詳細な説明を入力してください"></textarea>
+        <span class="char-count" id="count-task-desc">0 / 300</span>
+      </div>
+
+      <div class="form-group">
+        <label>プロジェクト</label>
+        <p id="task-project-display" class="static-field">---</p>
+      </div>
+
+      <div class="form-group">
+        <label for="task-assignee">担当者 <span class="required">*</span></label>
+        <select id="task-assignee" name="assignee">
+          <option value="">選択してください</option>
+        </select>
+        <span class="error-msg" id="error-task-assignee"></span>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="task-start-date">開始日 <span class="required">*</span></label>
+          <input type="text" id="task-start-date" name="startDate" placeholder="選択してください...">
+          <span class="error-msg" id="error-task-startDate"></span>
+        </div>
+        <div class="form-group">
+          <label for="task-end-date">終了日 <span class="required">*</span></label>
+          <input type="text" id="task-end-date" name="endDate" placeholder="選択してください...">
+          <span class="warning-msg" id="warn-task-endDate"></span>
+          <span class="error-msg" id="error-task-endDate"></span>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="task-priority">優先度 <span class="required">*</span></label>
+          <select id="task-priority" name="priority">
+            <option value="high">高</option>
+            <option value="medium">中</option>
+            <option value="low">低</option>
+          </select>
+          <span class="error-msg" id="error-task-priority"></span>
+        </div>
+        <div class="form-group">
+          <label for="task-difficulty">難易度 <span class="required">*</span></label>
+          <select id="task-difficulty" name="difficulty">
+            <option value="hard">高</option>
+            <option value="medium">中</option>
+            <option value="easy">低</option>
+          </select>
+          <span class="error-msg" id="error-task-difficulty"></span>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group" id="form-group-status">
+          <label for="task-status">ステータス</label>
+            <select id="task-status" name="status">
+              <option value="not_started">未着手</option>
+              <option value="in_progress">進行中</option>
+              <option value="completed">完了</option>
+              <option value="suspended">中断</option>
+              <option value="needs_action">要対応</option>
+            </select>
+          <span class="error-msg" id="error-task-status"></span>
+        </div>
+        <div class="form-group">
+          <label for="task-est-hours">予定工数 (h)</label>
+          <input type="number" id="task-est-hours" name="estimatedHours" min="1" max="9999" placeholder="1">
+          <span class="error-msg" id="error-task-estimatedHours"></span>
+        </div>
+      </div>
+
+      <div class="form-group" id="form-group-actual-hours" style="display:none">
+        <label for="task-act-hours">実績工数 (h)</label>
+        <input type="number" id="task-act-hours" name="actualHours" min="0" max="9999" placeholder="0">
+      </div>
+
+      <div class="form-group" id="form-group-progress" style="display:none">
+        <label for="task-progress">進捗率 (%)</label>
+        <div class="progress-slider-container">
+          <input type="range" id="task-progress" name="progress" min="0" max="100" value="0" step="5">
+          <span id="task-progress-val-display">0%</span>
+        </div>
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" id="btn-cancel-task" class="btn btn-secondary">キャンセル</button>
+        <button type="submit" id="btn-submit-task" class="btn btn-primary">作成する</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ===== タスク詳細モーダルダイアログ ===== -->
+  <dialog id="task-detail-dialog" class="glass-dialog detail-dialog">
+    <div class="dialog-header">
+      <h2 id="task-detail-title">タスク詳細</h2>
+      <button type="button" id="btn-close-task-detail" class="btn-close">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="task-detail-body" class="detail-body">
+      <!-- JSで動的に描画 -->
+    </div>
+  </dialog>
+
+  <!-- ===== 依頼パネル（スライドアウト） ===== -->
+  <div id="issue-panel" class="issue-panel hidden">
+    <div class="issue-panel-header">
+      <h3>依頼一覧</h3>
+      <button type="button" id="btn-close-issue-panel" class="btn-close">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div id="issue-list" class="issue-list">
+      <!-- JSで動的に描画 -->
+    </div>
+  </div>
+  <div id="issue-overlay" class="issue-overlay hidden"></div>
+
+  <!-- ===== 転送（たらいまわし）モーダルダイアログ ===== -->
+  <dialog id="transfer-dialog" class="glass-dialog child-dialog">
+    <div class="dialog-header">
+      <h2>タスクの転送</h2>
+      <button type="button" id="btn-close-transfer" class="btn-close">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="transfer-body">
+      <p class="transfer-desc">このタスクの対応が難しい場合、別の担当者に転送します。</p>
+      <div class="form-group">
+        <label for="transfer-reason">転送理由 <span class="required">*</span></label>
+        <textarea id="transfer-reason" rows="3" maxlength="200" placeholder="転送理由を入力してください"></textarea>
+        <span class="error-msg" id="error-transfer-reason"></span>
+      </div>
+      <div class="form-group">
+        <label for="transfer-target">転送先 <span class="required">*</span></label>
+        <select id="transfer-target">
+          <option value="">選択してください</option>
+        </select>
+        <span class="error-msg" id="error-transfer-target"></span>
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" id="btn-cancel-transfer" class="btn btn-secondary">キャンセル</button>
+      <button type="button" id="btn-confirm-transfer" class="btn btn-primary">転送する</button>
+    </div>
+  </dialog>
+
+  <!-- 社員選択モーダルダイアログ -->
+  <dialog id="employee-dialog" class="glass-dialog child-dialog">
+    <div class="dialog-header">
+      <h2>社員選択 (社員マスタ)</h2>
+      <button type="button" id="btn-close-emp-dialog" class="btn-close">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    
+    <div class="emp-search-wrapper">
+      <div class="input-with-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="input-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="emp-search-keyword" placeholder="社員名、部署名で検索...">
+      </div>
+    </div>
+
+    <div class="emp-list-container">
+      <ul id="emp-list" class="emp-list">
+        <!-- JSで動的に社員リストを描画 -->
+      </ul>
+    </div>
+
+    <div class="dialog-actions">
+      <button type="button" id="btn-cancel-emp" class="btn btn-secondary">キャンセル</button>
+      <button type="button" id="btn-confirm-emp" class="btn btn-primary">決定</button>
+    </div>
+  </dialog>
+
+  <!-- ===== 確認ダイアログ ===== -->
+  <dialog id="confirm-dialog" class="glass-dialog child-dialog" style="max-width:400px;">
+    <div class="dialog-header">
+      <h2>確認</h2>
+      <button type="button" id="btn-close-confirm" class="btn-close">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="confirm-body" style="padding:1rem 2rem;">
+      <p id="confirm-message" style="font-size:0.95rem;color:var(--text-main);line-height:1.6;white-space:pre-wrap;"></p>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" id="btn-ok-confirm" class="btn btn-primary">はい</button>
+      <button type="button" id="btn-cancel-confirm" class="btn btn-secondary">いいえ</button>
+    </div>
+  </dialog>
+
+  <!-- ===== 完了ダイアログ ===== -->
+  <dialog id="complete-dialog" class="glass-dialog child-dialog" style="max-width:400px;">
+    <div class="dialog-header">
+      <h2>完了</h2>
+      <button type="button" id="btn-close-complete" class="btn-close">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="complete-body" style="padding:1rem 2rem;">
+      <p id="complete-message" style="font-size:0.95rem;color:var(--text-main);line-height:1.6;white-space:pre-wrap;"></p>
+    </div>
+    <div class="dialog-actions">
+      <button type="button" id="btn-ok-complete" class="btn btn-primary">OK</button>
+    </div>
+  </dialog>
+
+  <!-- JS Scripts -->
+  <!-- sql.js (SQLite WASM) -->
+  <script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
+  <!-- Flatpickr JS & JP translation -->
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ja.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/data/schema.js"></script>
+  <script src="js/data/init-db.js"></script>
+  <script src="js/data/api-client.js"></script>
+  <script src="js/data/repository.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/globals.js"></script>
+  <script src="js/helpers.js"></script>
+  <script src="js/dialogs/shared-dialog.js"></script>
+  <script src="js/utils/flatpickr.js"></script>
+  <script src="js/utils/dom.js"></script>
+  <script src="js/components/projects.js"></script>
+  <script src="js/components/tasks.js"></script>
+  <script src="js/components/wbs.js"></script>
+  <script src="js/components/issues.js"></script>
+  <script src="js/components/view-switcher.js"></script>
+  <script src="js/dialogs/task-form.js"></script>
+  <script src="js/dialogs/project-form.js"></script>
+  <script src="js/dialogs/employee.js"></script>
+  <script src="js/dialogs/task-detail.js"></script>
+  <script src="js/dialogs/login.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

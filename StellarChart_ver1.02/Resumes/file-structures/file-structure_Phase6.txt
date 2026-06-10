@@ -1,0 +1,244 @@
+================================================================================
+StellarChart JavaScript Files - Functions & Definitions Index (Phase 6)
+================================================================================
+
+Below is the structured listing extracted from each file's header comment.
+
+--------------------------------------------------------------------------------
+1. js/data.js
+   役割: アプリケーション全体で使用する定数・マスタデータ・モックデータを定義する。
+         このファイルは他ファイルに依存しない（真っ先に読み込むこと）
+   定義内容:
+     - RANK_LEVELS       : ランク定義オブジェクト { RankC, RankB, RankA, RankS }
+     - RANK_LABELS       : ランク表示ラベル
+     - employeeMaster    : 社員マスタ配列 (name, department, rank)
+     - projects          : プロジェクト一覧 (モックデータ)
+     - tasks             : タスク一覧 (モックデータ)
+     - transfers         : 転送（たらいまわし）レコード一覧
+     - taskIdCounter     : タスクID採番カウンター
+     - renderDateTime    : 日時表示用フォーマッター
+     - getDefaultMembers : プロジェクト初期メンバー取得
+
+--------------------------------------------------------------------------------
+2. js/auth.js
+   役割: ユーザーランクに基づく権限チェック関数。各画面/操作の表示制御に使用する。
+   関数一覧:
+     - hasRank(minLevel)           : 最小ランク以上か判定
+     - canCreateProject()          : プロジェクト作成権限 (RankS)
+     - canEditProject()            : プロジェクト編集権限 (RankA)
+     - canDeleteProject()          : プロジェクト削除権限 (RankS)
+     - canCreateTask()             : タスク作成権限 (RankA)
+     - canEditTask()               : タスク編集権限 (RankB)
+     - canDeleteTask()             : タスク削除権限 (RankA)
+     - canTransfer()               : 転送権限 (常にtrue)
+     - canChangeStatus(task)       : ステータス変更権限 (担当者自身 or RankA以上)
+
+--------------------------------------------------------------------------------
+3. js/globals.js
+   役割: アプリケーション全体で共有するグローバル状態変数とDOM要素参照を定義する。
+         このファイルは helpers.js の前に読み込むこと。
+   状態変数:
+     - currentUser               : ログインユーザー { name, department, rank }
+     - currentView               : 現在の表示ビュー ('projects'|'tasks'|'wbs'|'effort')
+     - editingProjectId          : 編集中のプロジェクトID
+     - editingTaskId             : 編集中のタスクID
+     - currentTaskProjectId      : タスク作成・編集時のプロジェクトID
+     - selectedEmployeeNames     : 社員選択用の一時的な状態（Set）
+     - wbsCurrentProjectId       : WBS表示中のプロジェクトID
+     - creatingChildParentTaskId : 子タスク作成時の親タスクID
+     - taskEndDateBoundary       : タスク終了日の上限
+     - taskEndDateBoundaryLabel  : 上限ラベル
+   DOM要素: 全画面の各input/select/button/dialogへの参照
+
+--------------------------------------------------------------------------------
+4. js/helpers.js
+   役割: タスクの状態計算・表示用フォーマット・ツリー構築など、
+         DOM操作を含まない純粋関数群。
+   関数一覧:
+     - isLeafTask                     : 末端タスク判定
+     - getLeafDescendants             : 末端タスク一覧取得（再帰）
+     - getComputedActualHours         : 実績工数（非末端は子の合計）
+     - getComputedStatus              : ステータス（非末端は子から算出）
+     - getComputedAssignees           : 担当者一覧（非末端は子から収集）
+     - getComputedAssigneeLabel       : 担当者表示ラベル生成
+     - getComputedProgress            : 進捗率（非末端は子の平均）
+     - getActualHoursBreakdown        : 実績工数の親/子内訳
+     - getVisibleProjects             : 表示可能プロジェクト一覧
+     - getVisibleTasksForEffort       : 工数集計で表示可能なタスク一覧
+     - formatDate                     : 日付フォーマット (YYYY/MM/DD)
+     - getStatusLabel                 : ステータス表示ラベル変換
+     - getDifficultyLabel             : 難易度表示ラベル変換
+     - getPriorityLabel               : 優先度表示ラベル変換
+     - escapeHTML                     : HTMLエスケープ（XSS対策）
+     - hasChildren                    : 子タスク有無判定
+     - getTaskDepth                   : タスク階層深さ取得
+     - getNextWBSCode                 : WBSコード自動採番
+     - sortByWBSCode                  : WBSコード順ソート
+     - buildTaskTree                  : タスクツリー構築
+     - ensureEffortLog                : effortLog配列初期化
+     - recalcActualHours              : 実績工数再計算
+     - formatTimestamp                : タイムスタンプフォーマット
+     - applyStatusAutoProgress        : ステータス自動進捗適用
+     - addStatusHistory               : ステータス履歴追加
+
+--------------------------------------------------------------------------------
+5. js/utils/flatpickr.js
+   役割: 全画面で使用する日付ピッカーの設定とインスタンス変数を保持する。
+         fpConfig は共通設定オブジェクトで、各 input に適用する。
+         各 fp 変数は initApp() 内で flatpickr() を呼んで初期化される。
+   変数一覧:
+     - filterStartFp  / filterEndFp   : プロジェクト検索フィルター用
+     - projStartFp    / projEndFp     : プロジェクト作成/編集フォーム用
+     - taskStartDateFp / taskEndDateFp: タスク作成/編集フォーム用
+     - fpConfig                       : 共通設定オブジェクト (locale, 日付形式, モーダル表示)
+
+--------------------------------------------------------------------------------
+6. js/utils/dom.js
+   役割: フォームバリデーションエラー表示/クリアのDOM操作関数。
+         プロジェクトフォーム / タスクフォーム双方で使用する。
+   関数一覧:
+     - clearErrors                : 全エラーメッセージ・エラースタイルをクリア（プロジェクト用）
+     - showFieldError             : 特定フィールドにエラーを表示（プロジェクト用）
+     - clearTaskErrors            : 全エラーメッセージ・エラースタイルをクリア（タスク用）
+     - showTaskError              : 特定フィールドにエラーを表示（タスク用）
+     - clearTaskWarnings          : 警告メッセージをクリア（タスク用）
+     - updateTaskEndDateWarning   : 終了日超過警告を表示/非表示（タスク用）
+
+--------------------------------------------------------------------------------
+7. js/components/projects.js
+   役割: プロジェクト一覧画面の描画・フィルタリング・削除・
+         プロジェクトセレクトボックス（タスクフィルター用）の構築を行う。
+   関数一覧:
+     - applyRankBasedUI()              : ランクに応じて「新規プロジェクト」ボタンの表示/非表示を制御
+     - resetFilters()                  : プロジェクト検索フィルターをすべて初期値に戻す
+     - renderProjects()                : プロジェクトカード一覧をフィルター条件で絞り込み描画
+     - deleteProject(projectId)        : プロジェクトと配下タスクを削除（確認ダイアログ付き）
+     - populateProjectSelects()        : タスクフィルター用のプロジェクトセレクトボックスを構築
+
+--------------------------------------------------------------------------------
+8. js/components/tasks.js
+   役割: タスク一覧画面の描画・フィルタリング・削除・
+         担当者セレクトボックスの構築を行う。
+   関数一覧:
+     - populateAssigneeSelect(projectId)  : タスクフォームの担当者セレクトを構築（プロジェクトメンバーで絞り込み）
+     - resetTaskFilters()                 : タスク検索フィルターをすべて初期値に戻す
+     - renderTasks()                      : タスクカード一覧をフィルター条件で絞り込み描画（ランク可視性対応）
+     - deleteTask(taskId)                 : タスクと子タスクを再帰的に削除（確認ダイアログ付き）
+
+--------------------------------------------------------------------------------
+9. js/components/wbs.js
+   役割: WBSツリー表示・工数集計画面の描画、および
+         各画面で使用するプロジェクトセレクトボックスの構築を行う。
+   関数一覧:
+     - populateEffortProjectSelect()     : 工数集計画面のプロジェクトセレクト構築
+     - populateWBSProjectSelect()        : WBS画面のプロジェクトセレクト構築
+     - renderWBS()                       : WBSツリーを描画（「自分の担当のみ」フィルター対応）
+     - filterTreeByVisible(nodes, myTaskIds)   : 担当タスクのみにツリーを絞り込む（再帰）
+     - renderTreeNodes(nodes, depth, myTaskIds): WBSツリーノードをHTML生成（再帰）
+     - renderEffortSummary()             : 工数集計サマリー（計画/実績/差異/担当者別/WBS別）を描画
+     - renderEffortWBSTree(projectId, parentTaskId, visibleTasks): WBS別工数ツリーをHTML生成（再帰）
+
+--------------------------------------------------------------------------------
+10. js/components/issues.js
+    役割: 要課題（needs_action）の一覧表示・バッジ更新・
+          タスク転送（たらいまわし）ダイアログの制御を行う。
+    関数一覧:
+     - getActiveIssues()           : 自分宛ての未処理要課題一覧を取得
+     - updateIssueBadge()          : サイドバーの要課題バッジ数を更新
+     - openIssuePanel()            : 要課題パネル（スライドアウト）を開く
+     - closeIssuePanel()           : 要課題パネルを閉じる
+     - openTransferDialog(taskId)  : 転送ダイアログを開く（転送先セレクト構築）
+     - confirmTransfer()           : 転送を確定（担当者変更・スレッド追記・要課題レコード作成）
+    グローバル変数:
+     - transferTaskId              : 現在転送処理中のタスクID
+
+--------------------------------------------------------------------------------
+11. js/components/view-switcher.js
+    役割: サイドバーナビゲーションによるビュー切り替え処理。
+          各ビューの表示/非表示とサイドバーのアクティブ状態を管理する。
+    関数一覧:
+     - switchView(view)  : 指定ビュー（projects/tasks/wbs/effort）に切り替え
+
+--------------------------------------------------------------------------------
+12. js/dialogs/task-form.js
+    役割: タスク作成/編集/子タスク作成の各ダイアログ表示・フォーム送信処理を行う。
+          バリデーション・WBSコード自動採番・進捗自動計算も担当する。
+    関数一覧:
+     - openCreateTaskDialogForProject(projectId)   : プロジェクトからタスク作成ダイアログを開く
+     - openCreateTaskDialog()                       : タスク一覧からタスク作成ダイアログを開く
+     - openCreateChildTaskDialog(parentTaskId)      : 親タスク指定で子タスク作成ダイアログを開く
+     - openEditTaskDialog(taskId)                   : 既存タスクの編集ダイアログを開く
+     - handleTaskFormSubmit(e)                      : フォーム送信処理（新規作成/編集判定・バリデーション・保存）
+
+--------------------------------------------------------------------------------
+13. js/dialogs/project-form.js
+    役割: プロジェクト作成/編集ダイアログの表示・フォーム送信処理を行う。
+          バリデーション（メンバー必須・RankB以上必須など）も担当する。
+    関数一覧:
+     - openCreateDialog()          : 新規プロジェクト作成ダイアログを開く
+     - openEditDialog(projectId)   : 既存プロジェクトの編集ダイアログを開く
+     - closeCreateDialog()         : プロジェクトダイアログを閉じる
+     - handleFormSubmit(e)         : フォーム送信処理（新規作成/編集判定・バリデーション・保存）
+
+--------------------------------------------------------------------------------
+14. js/dialogs/employee.js
+    役割: プロジェクトメンバー選択ダイアログの表示・社員検索・選択管理を行う。
+          作成者は強制的に選択され、削除不可。
+    関数一覧:
+     - openEmployeeDialog()               : 社員選択ダイアログを開く（現在のメンバーを初期表示）
+     - renderEmployees(filterText)        : 社員リストを描画（キーワードフィルター対応）
+     - handleCheckboxToggle(checkbox)     : チェックボックス変更時の選択状態を更新
+     - confirmSelectedEmployees()         : 選択を確定し、プロジェクトフォームのメンバー入力欄に反映
+
+--------------------------------------------------------------------------------
+15. js/dialogs/task-detail.js
+    役割: タスク詳細モーダルの表示・更新・コメント・作業履歴削除を担当する。
+    関数一覧:
+     - currentDetailTaskId (変数)             : 現在開いているタスク詳細のタスクID
+     - openTaskDetail(taskId)                  : タスク詳細モーダルを開く（全情報HTML生成・イベントバインド）
+     - deleteEffortLogEntry(taskId, logId)     : 作業履歴エントリを削除し再計算・再描画
+     - addComment(taskId, content)             : スレッドにコメントを追加し再描画
+     - updateTaskFromDetail(taskId)            : 詳細画面からステータス・工数・進捗を更新
+
+--------------------------------------------------------------------------------
+16. js/dialogs/login.js
+    役割: ログインダイアログの表示・社員カード生成・ユーザー選択処理。
+          ログイン成功後に initApp() を呼び出す。
+    関数一覧:
+     - showLoginDialog()  : 社員マスタからカード一覧を生成してログインダイアログを表示
+
+--------------------------------------------------------------------------------
+17. js/app.js
+    役割: アプリケーションの起動エントリポイント。
+          initApp() はログイン成功後に呼び出され、Flatpickr の初期化、
+          全イベントリスナーの登録、初回レンダリング、サイドバー設定を行う。
+    関数一覧:
+     - initApp()  : アプリ初期化（Flatpickr・イベントリスナー・初回レンダリング）
+
+================================================================================
+Script Load Order (index.html)
+================================================================================
+
+  1. CDN: flatpickr
+  2. CDN: flatpickr/ja
+  3. js/data.js
+  4. js/auth.js
+  5. js/globals.js
+  6. js/helpers.js
+  7. js/utils/flatpickr.js
+  8. js/utils/dom.js
+  9. js/components/projects.js
+ 10. js/components/tasks.js
+ 11. js/components/wbs.js
+ 12. js/components/issues.js
+ 13. js/components/view-switcher.js
+ 14. js/dialogs/task-form.js
+ 15. js/dialogs/project-form.js
+ 16. js/dialogs/employee.js
+ 17. js/dialogs/task-detail.js
+ 18. js/dialogs/login.js
+ 19. js/app.js
+
+================================================================================
+End of Index (Phase 6)
+================================================================================

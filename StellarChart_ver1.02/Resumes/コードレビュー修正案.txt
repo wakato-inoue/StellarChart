@@ -1,0 +1,62 @@
+# StellarChart コードレビュー修正案
+作成日: 2026-06-10
+更新日: 2026-06-10（全項目対応済み、Item 2 のみ defer）
+
+## Critical（優先度高）
+
+### 1. データ消失リスク [✅ 対応済み]
+- 問題: saveDatabase() はログアウト時のみ。タブを閉じると変更が消える
+- 対応: app.js の initApp() 内に以下を追加
+  window.addEventListener('beforeunload', saveDatabase);
+
+### 2. グローバル汚染 [⏸ Phase4完了後に defer]
+- 問題: 全関数・変数がグローバル。20ファイル以上あるので競合リスク高い
+- 対応: 各JSファイルを即時関数（IIFE）で囲む。または ES Modules（type="module" + export/import）に移行する
+  → 工数がかかるため Phase4 完了後に対応推奨
+
+### 3. エラーハンドリング不足 [✅ 対応済み]
+- 問題: handleFormSubmit() / handleTaskFormSubmit() / updateTaskFromDetail() に try-catch がない
+- 対応: 各フォーム送信ハンドラに try-catch を追加し、エラー時にユーザーに通知する
+  （issues.js の completeNeedsAction と同様のパターン）
+
+### 4. CSP未設定 [✅ 対応済み]
+- 問題: CDN（sql.js, flatpickr）を読み込んでいるが、スクリプト制限のメタタグがない
+- 対応: index.html の <head> に以下を追加
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; img-src 'self' data:;">
+
+## Medium（優先度中）
+
+### 5. O(n²) パフォーマンス [✅ 対応済み]
+- 問題: init-db.js で employeeMaster.indexOf(emp) がループ内で呼ばれている
+- 対応: forEach((emp, index) => で index を直接使う
+
+### 6. デッドコード [✅ 対応済み]
+- 問題: data.js の wbsCodeCounter が一度も参照されていない
+- 対応: 削除する
+
+### 7. サイドバーのちらつき [✅ 対応済み]
+- 問題: index.html に "ステラ ユーザー" / "管理者" がハードコードされていて JS 書換まで一瞬表示される
+- 対応: 空欄に変更する
+  <p class="user-name"></p>
+  <p class="user-role"></p>
+
+### 8. CSS変数未定義 [✅ 対応済み]
+- 問題: var(--accent-cyan) が :root に定義されていない（style.css の複数箇所で使用）
+- 対応: :root に --accent-cyan を追加するか、使用箇所を var(--primary) に置き換える
+
+### 9. WASMローディング表示 [✅ 対応済み]
+- 問題: initSqlJs() のWASMダウンロード中に何も表示されない
+- 対応: index.html にローディングオーバーレイを追加し、initApp() 内で非表示にする
+
+### 10. ログインEscapeキー対策 [✅ 対応済み]
+- 問題: ログインダイアログで Escape を押すとダイアログが閉じ、currentUser が null のままアプリが壊れる
+- 対応: login.js の showLoginDialog() 内に以下を追加
+  loginDialog.addEventListener('close', () => {
+    if (!currentUser) loginDialog.showModal();
+  });
+
+## 備考
+- コード修正のみで対応可能: 1, 3, 4, 5, 6, 7, 8, 10 → ✅ すべて対応済み
+- UI変更が必要: 9（ローディングオーバーレイ追加）→ ✅ 対応済み
+- 大規模リファクタリング: 2（IIFE / ES Modules）→ ⏸ Phase4完了後
+- チェックリスト: Resumes\コードレビュー修正チェックリスト.txt に作成
